@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>LoadPrompt</class>
+
+ <widget class="QDialog" name="LoadPrompt">
+
+  <property name="windowTitle">
+   <string>Load Robot</string>
+  </property>
+
+  <layout class="QVBoxLayout" name="mainLayout">
+
+   <item>
+    <widget class="QLabel" name="titleLabel">
+     <property name="text">
+      <string>Load the robot</string>
+     </property>
+     <property name="styleSheet">
+      <string>font-size: 18px; font-weight: bold;</string>
+     </property>
+    </widget>
+   </item>
+
+   <item>
+    <widget class="QLabel" name="massLabel">
+     <property name="text">
+      <string>Load mass: 0 kg</string>
+     </property>
+    </widget>
+   </item>
+
+   <item>
+    <widget class="QDialogButtonBox" name="buttonBox">
+     <property name="standardButtons">
+      <set>QDialogButtonBox::Ok</set>
+     </property>
+    </widget>
+   </item>
+
+  </layout>
+
+ </widget>
+
+ <resources/>
+ <connections>
+
+  <connection>
+   <sender>buttonBox</sender>
+   <signal>accepted()</signal>
+   <receiver>LoadPrompt</receiver>
+   <slot>accept()</slot>
+  </connection>
+
+ </connections>
+</ui>

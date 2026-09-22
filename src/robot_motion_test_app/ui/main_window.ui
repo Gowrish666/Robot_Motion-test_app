@@ -1,0 +1,996 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>MainWindow</class>
+
+ <widget class="QMainWindow" name="MainWindow">
+
+  <property name="windowTitle">
+   <string>Robot Motion Profile Testing Tool</string>
+  </property>
+
+  <property name="minimumSize">
+   <size>
+    <width>1200</width>
+    <height>760</height>
+   </size>
+  </property>
+
+  <widget class="QWidget" name="centralwidget">
+
+   <layout class="QVBoxLayout" name="mainLayout">
+
+    <property name="spacing">
+     <number>0</number>
+    </property>
+
+    <property name="leftMargin">
+     <number>0</number>
+    </property>
+
+    <property name="topMargin">
+     <number>0</number>
+    </property>
+
+    <property name="rightMargin">
+     <number>0</number>
+    </property>
+
+    <property name="bottomMargin">
+     <number>0</number>
+    </property>
+
+
+    <!-- TOP BAR -->
+
+    <item>
+
+     <widget class="QFrame" name="topBar">
+
+      <property name="minimumHeight">
+       <number>60</number>
+      </property>
+
+      <property name="maximumHeight">
+       <number>60</number>
+      </property>
+
+      <property name="frameShape">
+       <enum>QFrame::StyledPanel</enum>
+      </property>
+
+
+      <layout class="QHBoxLayout" name="topBarLayout">
+
+       <property name="spacing">
+        <number>0</number>
+       </property>
+
+       <property name="leftMargin">
+        <number>10</number>
+       </property>
+
+       <property name="topMargin">
+        <number>0</number>
+       </property>
+
+       <property name="rightMargin">
+        <number>10</number>
+       </property>
+
+       <property name="bottomMargin">
+        <number>0</number>
+       </property>
+
+
+       <item>
+
+        <spacer name="titleLeftSpacer">
+
+         <property name="orientation">
+          <enum>Qt::Horizontal</enum>
+         </property>
+
+         <property name="sizeType">
+          <enum>QSizePolicy::Fixed</enum>
+         </property>
+
+         <property name="sizeHint" stdset="0">
+          <size>
+           <width>190</width>
+           <height>20</height>
+          </size>
+         </property>
+
+        </spacer>
+
+       </item>
+
+
+       <item>
+
+        <widget class="QLabel" name="applicationTitle">
+
+         <property name="sizePolicy">
+          <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
+           <horstretch>1</horstretch>
+           <verstretch>0</verstretch>
+          </sizepolicy>
+         </property>
+
+         <property name="text">
+          <string>ROBOT MOTION PROFILE TESTING</string>
+         </property>
+
+         <property name="alignment">
+          <set>Qt::AlignCenter</set>
+         </property>
+
+         <property name="styleSheet">
+          <string notr="true">font-size: 18px; font-weight: bold;</string>
+         </property>
+
+        </widget>
+
+       </item>
+
+
+       <item>
+
+        <widget class="QWidget" name="topButtonContainer">
+
+         <property name="minimumWidth">
+          <number>190</number>
+         </property>
+
+         <property name="maximumWidth">
+          <number>190</number>
+         </property>
+
+
+         <layout class="QHBoxLayout" name="topButtonLayout">
+
+          <property name="spacing">
+           <number>6</number>
+          </property>
+
+          <property name="leftMargin">
+           <number>0</number>
+          </property>
+
+          <property name="topMargin">
+           <number>0</number>
+          </property>
+
+          <property name="rightMargin">
+           <number>0</number>
+          </property>
+
+          <property name="bottomMargin">
+           <number>0</number>
+          </property>
+
+
+          <item>
+
+           <widget class="QPushButton" name="startButton">
+
+            <property name="minimumSize">
+             <size>
+              <width>90</width>
+              <height>34</height>
+             </size>
+            </property>
+
+            <property name="maximumSize">
+             <size>
+              <width>90</width>
+              <height>34</height>
+             </size>
+            </property>
+
+            <property name="text">
+             <string>START</string>
+            </property>
+
+           </widget>
+
+          </item>
+
+
+          <item>
+
+           <widget class="QPushButton" name="stopButton">
+
+            <property name="minimumSize">
+             <size>
+              <width>90</width>
+              <height>34</height>
+             </size>
+            </property>
+
+            <property name="maximumSize">
+             <size>
+              <width>90</width>
+              <height>34</height>
+             </size>
+            </property>
+
+            <property name="enabled">
+             <bool>false</bool>
+            </property>
+
+            <property name="text">
+             <string>STOP</string>
+            </property>
+
+           </widget>
+
+          </item>
+
+         </layout>
+
+        </widget>
+
+       </item>
+
+      </layout>
+
+     </widget>
+
+    </item>
+
+
+    <!-- MAIN BODY -->
+
+    <item>
+
+     <layout class="QHBoxLayout" name="bodyLayout">
+
+      <property name="spacing">
+       <number>0</number>
+      </property>
+
+      <property name="leftMargin">
+       <number>0</number>
+      </property>
+
+      <property name="topMargin">
+       <number>0</number>
+      </property>
+
+      <property name="rightMargin">
+       <number>0</number>
+      </property>
+
+      <property name="bottomMargin">
+       <number>0</number>
+      </property>
+
+
+      <!-- LEFT SIDEBAR -->
+
+      <item>
+
+       <widget class="QFrame" name="leftSidebar">
+
+        <property name="frameShape">
+         <enum>QFrame::StyledPanel</enum>
+        </property>
+
+
+        <layout class="QVBoxLayout" name="leftLayout">
+
+         <property name="spacing">
+          <number>0</number>
+         </property>
+
+         <property name="leftMargin">
+          <number>0</number>
+         </property>
+
+         <property name="topMargin">
+          <number>0</number>
+         </property>
+
+         <property name="rightMargin">
+          <number>0</number>
+         </property>
+
+         <property name="bottomMargin">
+          <number>0</number>
+         </property>
+
+
+         <item>
+
+          <widget class="QLabel" name="testCasesHeading">
+
+           <property name="minimumHeight">
+            <number>45</number>
+           </property>
+
+           <property name="maximumHeight">
+            <number>45</number>
+           </property>
+
+           <property name="text">
+            <string>TEST CASES</string>
+           </property>
+
+           <property name="alignment">
+            <set>Qt::AlignCenter</set>
+           </property>
+
+           <property name="styleSheet">
+            <string notr="true">font-weight: bold; font-size: 15px;</string>
+           </property>
+
+          </widget>
+
+         </item>
+
+
+         <item>
+
+          <widget class="QFrame" name="headingSeparator">
+
+           <property name="frameShape">
+            <enum>QFrame::HLine</enum>
+           </property>
+
+           <property name="frameShadow">
+            <enum>QFrame::Plain</enum>
+           </property>
+
+          </widget>
+
+         </item>
+
+
+         <item>
+
+          <widget class="QFrame" name="countAddFrame">
+
+           <property name="minimumHeight">
+            <number>43</number>
+           </property>
+
+           <property name="maximumHeight">
+            <number>43</number>
+           </property>
+
+
+           <layout class="QHBoxLayout" name="countAddLayout">
+
+            <property name="spacing">
+             <number>0</number>
+            </property>
+
+            <property name="leftMargin">
+             <number>0</number>
+            </property>
+
+            <property name="topMargin">
+             <number>0</number>
+            </property>
+
+            <property name="rightMargin">
+             <number>0</number>
+            </property>
+
+            <property name="bottomMargin">
+             <number>0</number>
+            </property>
+
+
+            <item>
+
+             <widget class="QLabel" name="testCaseCountLabel">
+
+              <property name="text">
+               <string>No: 0</string>
+              </property>
+
+              <property name="alignment">
+               <set>Qt::AlignCenter</set>
+              </property>
+
+             </widget>
+
+            </item>
+
+
+            <item>
+
+             <widget class="QFrame" name="countSeparator">
+
+              <property name="frameShape">
+               <enum>QFrame::VLine</enum>
+              </property>
+
+              <property name="frameShadow">
+               <enum>QFrame::Plain</enum>
+              </property>
+
+             </widget>
+
+            </item>
+
+
+            <item>
+
+             <widget class="QPushButton" name="addTestCaseButton">
+
+              <property name="minimumSize">
+               <size>
+                <width>24</width>
+                <height>24</height>
+               </size>
+              </property>
+
+              <property name="maximumSize">
+               <size>
+                <width>24</width>
+                <height>24</height>
+               </size>
+              </property>
+
+              <property name="styleSheet">
+               <string notr="true">QPushButton { border: 1px solid palette(mid); border-radius: 12px; font-size: 16px; } QPushButton:hover { background: palette(alternate-base); }</string>
+              </property>
+
+              <property name="text">
+               <string>+</string>
+              </property>
+
+             </widget>
+
+            </item>
+
+           </layout>
+
+          </widget>
+
+         </item>
+
+
+         <item>
+
+          <widget class="QFrame" name="listTopSeparator">
+
+           <property name="frameShape">
+            <enum>QFrame::HLine</enum>
+           </property>
+
+           <property name="frameShadow">
+            <enum>QFrame::Plain</enum>
+           </property>
+
+          </widget>
+
+         </item>
+
+
+         <item>
+
+          <widget class="QListWidget" name="testCaseList">
+
+           <property name="frameShape">
+            <enum>QFrame::NoFrame</enum>
+           </property>
+
+           <property name="horizontalScrollBarPolicy">
+            <enum>Qt::ScrollBarAlwaysOff</enum>
+           </property>
+
+           <property name="selectionMode">
+            <enum>QAbstractItemView::SingleSelection</enum>
+           </property>
+
+          </widget>
+
+         </item>
+
+        </layout>
+
+       </widget>
+
+      </item>
+
+
+      <!-- CENTER -->
+
+      <item>
+
+       <widget class="QFrame" name="centerArea">
+
+        <property name="frameShape">
+         <enum>QFrame::StyledPanel</enum>
+        </property>
+
+
+        <layout class="QVBoxLayout" name="centerLayout">
+
+         <property name="spacing">
+          <number>8</number>
+         </property>
+
+         <property name="leftMargin">
+          <number>8</number>
+         </property>
+
+         <property name="topMargin">
+          <number>8</number>
+         </property>
+
+         <property name="rightMargin">
+          <number>8</number>
+         </property>
+
+         <property name="bottomMargin">
+          <number>8</number>
+         </property>
+
+        </layout>
+
+       </widget>
+
+      </item>
+
+
+      <!-- RIGHT SIDEBAR -->
+
+      <item>
+
+       <widget class="QFrame" name="rightSidebar">
+
+        <property name="frameShape">
+         <enum>QFrame::StyledPanel</enum>
+        </property>
+
+
+        <layout class="QVBoxLayout" name="rightLayout">
+
+         <property name="spacing">
+          <number>0</number>
+         </property>
+
+         <property name="leftMargin">
+          <number>0</number>
+         </property>
+
+         <property name="topMargin">
+          <number>0</number>
+         </property>
+
+         <property name="rightMargin">
+          <number>0</number>
+         </property>
+
+         <property name="bottomMargin">
+          <number>0</number>
+         </property>
+
+
+         <item>
+
+          <widget class="QLabel" name="waypointsHeading">
+
+           <property name="minimumHeight">
+            <number>45</number>
+           </property>
+
+           <property name="maximumHeight">
+            <number>45</number>
+           </property>
+
+           <property name="text">
+            <string>WAYPOINTS</string>
+           </property>
+
+           <property name="alignment">
+            <set>Qt::AlignCenter</set>
+           </property>
+
+           <property name="styleSheet">
+            <string notr="true">font-weight: bold; font-size: 15px;</string>
+           </property>
+
+          </widget>
+
+         </item>
+
+
+         <item>
+
+          <widget class="QFrame" name="waypointHeadingSeparator">
+
+           <property name="frameShape">
+            <enum>QFrame::HLine</enum>
+           </property>
+
+           <property name="frameShadow">
+            <enum>QFrame::Plain</enum>
+           </property>
+
+          </widget>
+
+         </item>
+
+
+         <item>
+
+          <widget class="QLabel" name="startWaypointLabel">
+
+           <property name="minimumHeight">
+            <number>26</number>
+           </property>
+
+           <property name="text">
+            <string>Start Waypoint</string>
+           </property>
+
+           <property name="styleSheet">
+            <string notr="true">padding-left: 8px;</string>
+           </property>
+
+          </widget>
+
+         </item>
+
+
+         <item>
+
+          <widget class="QWidget" name="startWaypointContainer">
+
+           <layout class="QHBoxLayout" name="startWaypointLayout">
+
+            <property name="spacing">
+             <number>0</number>
+            </property>
+
+            <property name="leftMargin">
+             <number>8</number>
+            </property>
+
+            <property name="topMargin">
+             <number>0</number>
+            </property>
+
+            <property name="rightMargin">
+             <number>0</number>
+            </property>
+
+            <property name="bottomMargin">
+             <number>0</number>
+            </property>
+
+
+            <item>
+
+             <widget class="QComboBox" name="startWaypointComboBox">
+
+              <property name="minimumSize">
+               <size>
+                <width>180</width>
+                <height>28</height>
+               </size>
+              </property>
+
+              <property name="maximumSize">
+               <size>
+                <width>210</width>
+                <height>28</height>
+               </size>
+              </property>
+
+              <property name="editable">
+               <bool>true</bool>
+              </property>
+
+              <property name="insertPolicy">
+               <enum>QComboBox::NoInsert</enum>
+              </property>
+
+             </widget>
+
+            </item>
+
+
+            <item>
+
+             <spacer name="startWaypointSpacer">
+
+              <property name="orientation">
+               <enum>Qt::Horizontal</enum>
+              </property>
+
+             </spacer>
+
+            </item>
+
+           </layout>
+
+          </widget>
+
+         </item>
+
+
+         <item>
+
+          <widget class="QLabel" name="goalWaypointLabel">
+
+           <property name="minimumHeight">
+            <number>26</number>
+           </property>
+
+           <property name="text">
+            <string>Goal Waypoint</string>
+           </property>
+
+           <property name="styleSheet">
+            <string notr="true">padding-left: 8px;</string>
+           </property>
+
+          </widget>
+
+         </item>
+
+
+         <item>
+
+          <widget class="QWidget" name="goalWaypointContainer">
+
+           <layout class="QHBoxLayout" name="goalWaypointLayout">
+
+            <property name="spacing">
+             <number>0</number>
+            </property>
+
+            <property name="leftMargin">
+             <number>8</number>
+            </property>
+
+            <property name="topMargin">
+             <number>0</number>
+            </property>
+
+            <property name="rightMargin">
+             <number>0</number>
+            </property>
+
+            <property name="bottomMargin">
+             <number>0</number>
+            </property>
+
+
+            <item>
+
+             <widget class="QComboBox" name="goalWaypointComboBox">
+
+              <property name="minimumSize">
+               <size>
+                <width>180</width>
+                <height>28</height>
+               </size>
+              </property>
+
+              <property name="maximumSize">
+               <size>
+                <width>210</width>
+                <height>28</height>
+               </size>
+              </property>
+
+              <property name="editable">
+               <bool>true</bool>
+              </property>
+
+              <property name="insertPolicy">
+               <enum>QComboBox::NoInsert</enum>
+              </property>
+
+             </widget>
+
+            </item>
+
+
+            <item>
+
+             <spacer name="goalWaypointSpacer">
+
+              <property name="orientation">
+               <enum>Qt::Horizontal</enum>
+              </property>
+
+             </spacer>
+
+            </item>
+
+           </layout>
+
+          </widget>
+
+         </item>
+
+
+         <!-- No separator below Goal Waypoint -->
+
+         <item>
+
+          <widget class="QWidget" name="rightDynamicContainer">
+
+           <layout class="QVBoxLayout" name="rightDynamicLayout">
+
+            <property name="leftMargin">
+             <number>8</number>
+            </property>
+
+            <property name="topMargin">
+             <number>8</number>
+            </property>
+
+            <property name="rightMargin">
+             <number>8</number>
+            </property>
+
+            <property name="bottomMargin">
+             <number>8</number>
+            </property>
+
+           </layout>
+
+          </widget>
+
+         </item>
+
+
+         <item>
+
+          <spacer name="rightSpacer">
+
+           <property name="orientation">
+            <enum>Qt::Vertical</enum>
+           </property>
+
+          </spacer>
+
+         </item>
+
+        </layout>
+
+       </widget>
+
+      </item>
+
+     </layout>
+
+    </item>
+
+
+    <!-- STATUS BAR -->
+
+    <item>
+
+     <widget class="QFrame" name="statusBarFrame">
+
+      <property name="minimumHeight">
+       <number>38</number>
+      </property>
+
+      <property name="maximumHeight">
+       <number>38</number>
+      </property>
+
+      <property name="frameShape">
+       <enum>QFrame::StyledPanel</enum>
+      </property>
+
+
+      <layout class="QHBoxLayout" name="statusLayout">
+
+       <property name="spacing">
+        <number>12</number>
+       </property>
+
+       <property name="leftMargin">
+        <number>8</number>
+       </property>
+
+       <property name="topMargin">
+        <number>0</number>
+       </property>
+
+       <property name="rightMargin">
+        <number>8</number>
+       </property>
+
+       <property name="bottomMargin">
+        <number>0</number>
+       </property>
+
+
+       <item>
+
+        <widget class="QLabel" name="statusLabel">
+         <property name="text">
+          <string>Status: IDLE</string>
+         </property>
+        </widget>
+
+       </item>
+
+
+       <item>
+
+        <widget class="QLabel" name="currentTestLabel">
+         <property name="text">
+          <string>Current Test: --</string>
+         </property>
+        </widget>
+
+       </item>
+
+
+       <item>
+
+        <widget class="QLabel" name="iterationLabel">
+         <property name="text">
+          <string>Iteration: --</string>
+         </property>
+        </widget>
+
+       </item>
+
+
+       <item>
+
+        <widget class="QLabel" name="velocityLabel">
+         <property name="text">
+          <string>Velocity: --</string>
+         </property>
+        </widget>
+
+       </item>
+
+
+       <item>
+
+        <widget class="QLabel" name="distanceLabel">
+         <property name="text">
+          <string>Distance: --</string>
+         </property>
+        </widget>
+
+       </item>
+
+
+       <item>
+
+        <spacer name="statusSpacer">
+
+         <property name="orientation">
+          <enum>Qt::Horizontal</enum>
+         </property>
+
+        </spacer>
+
+       </item>
+
+      </layout>
+
+     </widget>
+
+    </item>
+
+   </layout>
+
+  </widget>
+
+ </widget>
+
+ <resources/>
+
+ <connections/>
+
+</ui>

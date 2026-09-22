@@ -1,0 +1,110 @@
+#ifndef ROBOT_MOTION_TEST_APP_TEST_EXECUTION_CONTROLLER_H
+#define ROBOT_MOTION_TEST_APP_TEST_EXECUTION_CONTROLLER_H
+
+#include <QObject>
+#include <QVector>
+#include <QPointF>
+
+#include <vector>
+
+#include "robot_motion_test_data/models.h"
+#include "robot_motion_test_app/ros_client.h"
+
+class TestExecutionController : public QObject
+{
+    Q_OBJECT
+
+public:
+    explicit TestExecutionController(
+        RosClient* rosClient,
+        QObject* parent = nullptr);
+
+    void setTestCases(
+        const std::vector<robot_motion_test_data::TestCase>& testCases);
+
+    void setWaypoints(
+        const QString& startWaypoint,
+        const QString& goalWaypoint);
+
+    void start();
+    void stop();
+
+
+    bool isRunning() const;
+
+signals:
+    void testStarted(
+        const QString& name,
+        int iteration);
+
+    void testFinished(
+        const QString& name);
+
+    void executionStopped();
+
+        void executionCompleted();
+
+    void statusChanged(
+        const QString& status);
+
+    void velocityDataChanged(
+        const QVector<QPointF>& data);
+
+    void velocityDistanceDataChanged(
+        const QVector<QPointF>& data);
+
+    void accelerationDataChanged(
+        const QVector<QPointF>& data);
+
+private slots:
+    void telemetryUpdated(
+        double velocity,
+        double distance,
+        double time);
+
+    
+    void goalReached();
+
+private:
+    enum class Phase
+    {
+        IDLE,
+        MOVING_TO_GOAL,
+        BRAKING,
+        RETURNING_TO_START
+    };
+
+    void startCurrentTest();
+    void finishCurrentIteration();
+    void clearCurrentData();
+
+    RosClient* ros_client_;
+
+    std::vector<robot_motion_test_data::TestCase> test_cases_;
+
+    QString start_waypoint_;
+    QString goal_waypoint_;
+
+    bool running_;
+
+    int current_test_index_;
+    int current_iteration_;
+
+    Phase phase_;
+
+    bool braking_started_;
+    bool return_motion_detected_;
+
+    double braking_start_distance_;
+    double braking_distance_;
+    double max_velocity_achieved_;
+
+    double previous_velocity_;
+    double previous_time_;
+
+    QVector<QPointF> velocity_time_data_;
+    QVector<QPointF> velocity_distance_data_;
+    QVector<QPointF> acceleration_time_data_;
+};
+
+#endif

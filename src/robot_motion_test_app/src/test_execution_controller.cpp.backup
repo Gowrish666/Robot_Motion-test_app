@@ -1,0 +1,471 @@
+#include "robot_motion_test_app/test_execution_controller.h"
+#include <algorithm>
+#include <cmath>
+
+TestExecutionController::TestExecutionController(
+    RosClient* rosClient,
+    QObject* parent)
+    : QObject(parent),
+      ros_client_(rosClient),
+      running_(false),
+      current_test_index_(0),
+      current_iteration_(0),
+      phase_(Phase::IDLE),
+     braking_started_(false),
+     return_motion_detected_(false),
+     braking_start_distance_(0.0),
+     braking_distance_(0.0),
+     max_velocity_achieved_(0.0),
+     previous_velocity_(0.0),
+     previous_time_(0.0)
+{
+    connect(
+        ros_client_,
+        &RosClient::velocityUpdated,
+        this,
+        &TestExecutionController::telemetryUpdated);
+
+    
+    connect(
+        ros_client_,
+        &RosClient::goalReached,
+        this,
+        &TestExecutionController::goalReached);
+}
+
+// Sets the current test queue.
+void TestExecutionController::setTestCases(
+    const std::vector<robot_motion_test_data::TestCase>& testCases)
+{
+    test_cases_ = testCases;
+}
+
+// Sets the selected waypoints.
+void TestExecutionController::setWaypoints(
+    const QString& startWaypoint,
+    const QString& goalWaypoint)
+{
+    start_waypoint_ = startWaypoint;
+    goal_waypoint_ = goalWaypoint;
+}
+
+// Starts the test sequence.
+void TestExecutionController::start()
+{
+    if (running_ || test_cases_.empty())
+    {
+        return;
+    }
+
+    if (start_waypoint_.isEmpty() ||
+        goal_waypoint_.isEmpty())
+    {
+        emit statusChanged(
+            "Select start and goal waypoints.");
+
+        return;
+    }
+
+    running_ = true;
+    current_test_index_ = 0;
+    current_iteration_ = 1;
+    phase_ = Phase::IDLE;
+
+    emit statusChanged(
+        "Test sequence started.");
+
+    startCurrentTest();
+}
+
+void TestExecutionController::startCurrentTest()
+{
+    if (!running_ ||
+        current_test_index_ >=
+            static_cast<int>(test_cases_.size()))
+    {
+        running_ = false;
+        phase_ = Phase::IDLE;
+
+        emit statusChanged(
+            "All tests completed.");
+
+        return;
+    }
+
+    /*
+     * Clear all accumulated data only when starting
+     * a new test case. For subsequent iterations,
+     * clear only the current iteration buffers.
+     */
+    if (current_iteration_ == 1)
+    {
+        clearCurrentData();
+    }
+    else
+    {
+        clearIterationData();
+    }
+
+    const auto& testCase =
+        test_cases_[current_test_index_];
+
+    phase_ = Phase::MOVING_TO_GOAL;
+
+    emit testStarted(
+        QString::fromStdString(testCase.name),
+        current_iteration_);
+
+    emit statusChanged(
+        QString("Running %1 iteration %2")
+            .arg(QString::fromStdString(testCase.name))
+            .arg(current_iteration_));
+
+    if (!ros_client_->configureMotion(
+            testCase.max_velocity_mps,
+            testCase.acceleration_mps2))
+    {
+        running_ = false;
+        phase_ = Phase::IDLE;
+
+        emit statusChanged(
+            "Failed to configure robot motion.");
+
+        emit executionStopped();
+
+        return;
+    }
+
+    if (!ros_client_->sendGoal(
+            start_waypoint_,
+            goal_waypoint_))
+    {
+        running_ = false;
+        phase_ = Phase::IDLE;
+
+        emit statusChanged(
+            "Failed to send goal.");
+
+        emit executionStopped();
+
+        return;
+    }
+}
+
+// Receives live robot telemetry.
+void TestExecutionController::telemetryUpdated(
+    double velocity,
+    double distance,
+    double time)
+{
+    if (!running_ ||
+        current_test_index_ >=
+            static_cast<int>(test_cases_.size()))
+    {
+        return;
+    }
+
+    const auto& testCase =
+        test_cases_[current_test_index_];
+
+    max_velocity_achieved_ =
+        std::max(
+            max_velocity_achieved_,
+            velocity);
+
+    /*
+     * Calculate acceleration from successive telemetry samples.
+     */
+    if (previous_time_ > 0.0 &&
+        time > previous_time_)
+    {
+        const double dt =
+            time - previous_time_;
+
+        const double acceleration =
+            (velocity - previous_velocity_) / dt;
+
+        acceleration_time_data_.append(
+            QPointF(time, acceleration));
+
+        emit accelerationDataChanged(
+            acceleration_time_data_);
+    }
+
+    previous_velocity_ = velocity;
+    previous_time_ = time;
+
+    /*
+     * Record velocity data during movement and braking.
+     */
+    if (phase_ == Phase::MOVING_TO_GOAL ||
+        phase_ == Phase::BRAKING)
+    {
+        velocity_time_data_.append(
+            QPointF(time, velocity));
+
+        velocity_distance_data_.append(
+            QPointF(distance, velocity));
+
+        emit velocityDataChanged(
+            velocity_time_data_);
+
+        emit velocityDistanceDataChanged(
+            velocity_distance_data_);
+    }
+
+    /*
+     * Maximum velocity reached.
+     */
+    if (phase_ == Phase::MOVING_TO_GOAL &&
+        velocity >= testCase.max_velocity_mps)
+    {
+        braking_started_ = true;
+
+        braking_start_distance_ =
+            distance;
+
+        phase_ = Phase::BRAKING;
+
+        emit statusChanged(
+            QString(
+                "Maximum velocity reached: %1 m/s")
+                .arg(
+                    velocity,
+                    0,
+                    'f',
+                    3));
+
+        switch (testCase.braking_type)
+        {
+            case robot_motion_test_data::BrakingType::STO:
+
+                emit statusChanged(
+                    "STO selected. "
+                    "Using simulation stop.");
+
+                ros_client_->stopRobot();
+
+                break;
+
+            case robot_motion_test_data::BrakingType::SAFE_STOP:
+
+                emit statusChanged(
+                    "Safe-Stop selected. "
+                    "Using simulation stop.");
+
+                ros_client_->stopRobot();
+
+                break;
+
+            case robot_motion_test_data::BrakingType::NONE:
+
+                ros_client_->stopRobot();
+
+                break;
+        }
+
+        return;
+    }
+
+    /*
+     * Robot has stopped after braking.
+     */
+    if (phase_ == Phase::BRAKING &&
+        std::abs(velocity) < 0.03)
+    {
+        braking_distance_ =
+            std::max(
+                0.0,
+                distance -
+                    braking_start_distance_);
+
+        emit statusChanged(
+            QString(
+                "Braking complete. "
+                "Braking distance: %1 m")
+                .arg(
+                    braking_distance_,
+                    0,
+                    'f',
+                    3));
+
+        phase_ =
+            Phase::RETURNING_TO_START;
+
+        return_motion_detected_ = false;
+
+        if (!ros_client_->sendGoal(
+                "",
+                start_waypoint_))
+        {
+            running_ = false;
+            phase_ = Phase::IDLE;
+
+            emit statusChanged(
+                "Failed to send return-to-start goal.");
+
+            emit executionStopped();
+
+            return;
+        }
+
+        emit statusChanged(
+            "Returning to start.");
+
+        return;
+    }
+
+    /*
+     * Detect movement during return-to-start.
+     */
+    if (phase_ == Phase::RETURNING_TO_START)
+    {
+        if (std::abs(velocity) > 0.05)
+        {
+            return_motion_detected_ = true;
+        }
+        else if (return_motion_detected_)
+        {
+            finishCurrentIteration();
+        }
+    }
+}
+
+void TestExecutionController::goalReached()
+{
+    if (!running_)
+    {
+        return;
+    }
+
+    if (phase_ == Phase::RETURNING_TO_START)
+    {
+        emit statusChanged(
+            "Returned to start.");
+
+        finishCurrentIteration();
+
+        return;
+    }
+
+    if (phase_ == Phase::MOVING_TO_GOAL)
+    {
+        emit statusChanged(
+            "Goal waypoint reached.");
+    }
+}
+
+void TestExecutionController::finishCurrentIteration()
+{
+    const auto& testCase =
+        test_cases_[current_test_index_];
+
+    emit testFinished(
+        QString::fromStdString(testCase.name));
+
+    if (current_iteration_ <
+        testCase.iterations)
+    {
+        ++current_iteration_;
+
+        emit statusChanged(
+            QString("Starting iteration %1")
+                .arg(current_iteration_));
+
+        startCurrentTest();
+
+        return;
+    }
+
+    ++current_test_index_;
+
+    if (current_test_index_ <
+        static_cast<int>(test_cases_.size()))
+    {
+        current_iteration_ = 1;
+
+        startCurrentTest();
+
+        return;
+    }
+
+    running_ = false;
+    phase_ = Phase::IDLE;
+
+    emit statusChanged(
+        "All tests completed.");
+
+    emit executionCompleted();  
+}
+void TestExecutionController::clearCurrentData()
+{
+    velocity_time_data_.clear();
+    velocity_distance_data_.clear();
+    acceleration_time_data_.clear();
+
+    braking_started_ = false;
+    return_motion_detected_ = false;
+
+    braking_start_distance_ = 0.0;
+    braking_distance_ = 0.0;
+    max_velocity_achieved_ = 0.0;
+
+    previous_velocity_ = 0.0;
+    previous_time_ = 0.0;
+
+    emit velocityDataChanged(
+        velocity_time_data_);
+
+    emit velocityDistanceDataChanged(
+        velocity_distance_data_);
+
+    emit accelerationDataChanged(
+        acceleration_time_data_);
+}
+
+void TestExecutionController::clearIterationData()
+{
+    velocity_time_data_.clear();
+    velocity_distance_data_.clear();
+    acceleration_time_data_.clear();
+
+    braking_started_ = false;
+    return_motion_detected_ = false;
+
+    braking_start_distance_ = 0.0;
+    braking_distance_ = 0.0;
+    max_velocity_achieved_ = 0.0;
+
+    previous_velocity_ = 0.0;
+    previous_time_ = 0.0;
+
+    emit velocityDataChanged(velocity_time_data_);
+    emit velocityDistanceDataChanged(velocity_distance_data_);
+    emit accelerationDataChanged(acceleration_time_data_);
+}
+
+// Stops the current test sequence.
+void TestExecutionController::stop()
+{
+    if (!running_)
+    {
+        return;
+    }
+
+    ros_client_->stopRobot();
+
+    running_ = false;
+    phase_ = Phase::IDLE;
+
+    clearCurrentData();
+
+    emit executionStopped();
+
+    emit statusChanged(
+        "Testing stopped. Current test data discarded.");
+}
+// Returns whether execution is active.
+bool TestExecutionController::isRunning() const
+{
+    return running_;
+}
