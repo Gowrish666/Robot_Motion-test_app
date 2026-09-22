@@ -5,7 +5,9 @@
 
 #include <QMessageBox>
 
-AddTestCaseDialog::AddTestCaseDialog(QWidget* parent)
+
+AddTestCaseDialog::AddTestCaseDialog(
+    QWidget* parent)
     : QDialog(parent),
       ui_(new Ui::AddTestCase)
 {
@@ -13,13 +15,15 @@ AddTestCaseDialog::AddTestCaseDialog(QWidget* parent)
 
     connect(
         ui_->loadConditionComboBox,
-        QOverload<int>::of(&QComboBox::currentIndexChanged),
+        QOverload<int>::of(
+            &QComboBox::currentIndexChanged),
         this,
         &AddTestCaseDialog::onLoadConditionChanged);
 
     onLoadConditionChanged(
         ui_->loadConditionComboBox->currentIndex());
 }
+
 
 AddTestCaseDialog::AddTestCaseDialog(
     const robot_motion_test_data::TestCase& testCase,
@@ -29,20 +33,22 @@ AddTestCaseDialog::AddTestCaseDialog(
     loadTestCase(testCase);
 }
 
-// Destroys the dialog UI.
+
 AddTestCaseDialog::~AddTestCaseDialog()
 {
     delete ui_;
 }
 
-// Returns the entered test case.
+
 robot_motion_test_data::TestCase
 AddTestCaseDialog::testCase() const
 {
     robot_motion_test_data::TestCase testCase;
 
     testCase.name =
-        ui_->nameLineEdit->text().trimmed().toStdString();
+        ui_->nameLineEdit->text()
+            .trimmed()
+            .toStdString();
 
     testCase.max_velocity_mps =
         ui_->maxVelocityDoubleSpinBox->value();
@@ -53,23 +59,35 @@ AddTestCaseDialog::testCase() const
     testCase.iterations =
         ui_->iterationsSpinBox->value();
 
-    if (ui_->brakingTypeComboBox->currentIndex() == 0)
+
+    switch (
+        ui_->brakingTypeComboBox->currentIndex())
     {
-        testCase.braking_type =
-            robot_motion_test_data::BrakingType::STO;
-    }
-    else if (ui_->brakingTypeComboBox->currentIndex() == 1)
-    {
-        testCase.braking_type =
-            robot_motion_test_data::BrakingType::SAFE_STOP;
-    }
-    else
-    {
-        testCase.braking_type =
-            robot_motion_test_data::BrakingType::NONE;
+        case 0:
+            testCase.braking_type =
+                robot_motion_test_data::BrakingType::STO;
+            break;
+
+        case 1:
+            testCase.braking_type =
+                robot_motion_test_data::BrakingType::SAFE_STOP;
+            break;
+
+        case 2:
+            testCase.braking_type =
+                robot_motion_test_data::BrakingType::NORMAL_BRAKING;
+            break;
+
+        default:
+            testCase.braking_type =
+                robot_motion_test_data::BrakingType::NONE;
+            break;
     }
 
-    if (ui_->loadConditionComboBox->currentIndex() == 0)
+
+    if (
+        ui_->loadConditionComboBox->currentIndex()
+        == 0)
     {
         testCase.load_condition =
             robot_motion_test_data::LoadCondition::NO_LOAD;
@@ -88,7 +106,7 @@ AddTestCaseDialog::testCase() const
     return testCase;
 }
 
-// Loads an existing test case into the dialog.
+
 void AddTestCaseDialog::loadTestCase(
     const robot_motion_test_data::TestCase& testCase)
 {
@@ -104,48 +122,83 @@ void AddTestCaseDialog::loadTestCase(
     ui_->iterationsSpinBox->setValue(
         testCase.iterations);
 
+
     switch (testCase.braking_type)
     {
         case robot_motion_test_data::BrakingType::STO:
-            ui_->brakingTypeComboBox->setCurrentIndex(0);
+
+            ui_->brakingTypeComboBox
+                ->setCurrentIndex(0);
+
             break;
+
 
         case robot_motion_test_data::BrakingType::SAFE_STOP:
-            ui_->brakingTypeComboBox->setCurrentIndex(1);
+
+            ui_->brakingTypeComboBox
+                ->setCurrentIndex(1);
+
             break;
 
+
+        case robot_motion_test_data::BrakingType::NORMAL_BRAKING:
+
+            ui_->brakingTypeComboBox
+                ->setCurrentIndex(2);
+
+            break;
+
+
         case robot_motion_test_data::BrakingType::NONE:
-            ui_->brakingTypeComboBox->setCurrentIndex(2);
+
+            ui_->brakingTypeComboBox
+                ->setCurrentIndex(3);
+
             break;
     }
+
 
     switch (testCase.load_condition)
     {
         case robot_motion_test_data::LoadCondition::NO_LOAD:
-            ui_->loadConditionComboBox->setCurrentIndex(0);
+
+            ui_->loadConditionComboBox
+                ->setCurrentIndex(0);
+
             break;
 
+
         case robot_motion_test_data::LoadCondition::UNDER_LOAD:
-            ui_->loadConditionComboBox->setCurrentIndex(1);
+
+            ui_->loadConditionComboBox
+                ->setCurrentIndex(1);
+
             break;
     }
+
 
     ui_->loadMassDoubleSpinBox->setValue(
         testCase.load_mass_kg);
 }
 
-// Enables or disables the load mass field.
-void AddTestCaseDialog::onLoadConditionChanged(int index)
-{
-    const bool loaded = index == 1;
 
-    ui_->loadMassDoubleSpinBox->setEnabled(loaded);
+void AddTestCaseDialog::onLoadConditionChanged(
+    int index)
+{
+    const bool loaded =
+        index == 1;
+
+    ui_->loadMassDoubleSpinBox
+        ->setEnabled(loaded);
 }
 
-// Validates test case values.
+
 bool AddTestCaseDialog::validate()
 {
-    if (ui_->nameLineEdit->text().trimmed().isEmpty())
+    if (
+        ui_->nameLineEdit->text()
+            .trimmed()
+            .isEmpty())
     {
         QMessageBox::warning(
             this,
@@ -155,7 +208,10 @@ bool AddTestCaseDialog::validate()
         return false;
     }
 
-    if (ui_->maxVelocityDoubleSpinBox->value() <= 0.0)
+
+    if (
+        ui_->maxVelocityDoubleSpinBox->value()
+        <= 0.0)
     {
         QMessageBox::warning(
             this,
@@ -165,7 +221,10 @@ bool AddTestCaseDialog::validate()
         return false;
     }
 
-    if (ui_->accelerationDoubleSpinBox->value() <= 0.0)
+
+    if (
+        ui_->accelerationDoubleSpinBox->value()
+        <= 0.0)
     {
         QMessageBox::warning(
             this,
@@ -175,8 +234,12 @@ bool AddTestCaseDialog::validate()
         return false;
     }
 
-    if (ui_->loadConditionComboBox->currentIndex() == 1 &&
-        ui_->loadMassDoubleSpinBox->value() <= 0.0)
+
+    if (
+        ui_->loadConditionComboBox->currentIndex()
+        == 1 &&
+        ui_->loadMassDoubleSpinBox->value()
+        <= 0.0)
     {
         QMessageBox::warning(
             this,
@@ -186,7 +249,10 @@ bool AddTestCaseDialog::validate()
         return false;
     }
 
-    if (ui_->iterationsSpinBox->value() <= 0)
+
+    if (
+        ui_->iterationsSpinBox->value()
+        <= 0)
     {
         QMessageBox::warning(
             this,
@@ -199,6 +265,7 @@ bool AddTestCaseDialog::validate()
     return true;
 }
 
+
 LoadPromptDialog::LoadPromptDialog(
     double massKg,
     QWidget* parent)
@@ -208,10 +275,12 @@ LoadPromptDialog::LoadPromptDialog(
     ui_->setupUi(this);
 
     ui_->massLabel->setText(
-        QString("Load mass: %1 kg").arg(massKg));
+        QString(
+            "Load mass: %1 kg")
+            .arg(massKg));
 }
 
-// Destroys the load prompt.
+
 LoadPromptDialog::~LoadPromptDialog()
 {
     delete ui_;

@@ -835,7 +835,10 @@ void MainWindow::exportResults()
             const QString& xLabel,
             const QString& yLabel,
             const QVector<QPointF>& data,
-            const QString& filePath) -> bool
+            const QString& filePath,
+            bool showBrakeMarker,
+            double brakeMarkerX,
+            const QString& brakeMarkerLabel) -> bool
         {
             if (data.isEmpty())
             {
@@ -852,6 +855,19 @@ void MainWindow::exportResults()
                 700);
 
             graph.setData(data);
+
+            /*
+             * The live graphs display the braking event as a red
+             * vertical marker. Add the same marker to the temporary
+             * export graph before rendering it to PNG.
+             */
+            if (showBrakeMarker &&
+                std::isfinite(brakeMarkerX))
+            {
+                graph.setEventMarker(
+                    brakeMarkerX,
+                    brakeMarkerLabel);
+            }
 
             QImage image(
                 1200,
@@ -999,13 +1015,85 @@ void MainWindow::exportResults()
         }
     }
 
+    /*
+     * Reconstruct the braking marker position for the exported
+     * graphs.
+     *
+     * braking_time_s and braking_distance_m are measured from the
+     * exact braking activation point until the robot reaches rest.
+     * Therefore the activation point is reconstructed from the final
+     * recorded telemetry sample.
+     */
+    bool export_brake_marker = false;
+    double export_brake_time = 0.0;
+    double export_brake_distance = 0.0;
+    QString export_brake_label;
+
+    if (latest_result.braking_type !=
+            robot_motion_test_data::BrakingType::NONE &&
+        !latest_result.velocity_time.empty() &&
+        !latest_result.velocity_distance.empty() &&
+        latest_result.braking_time_s >= 0.0 &&
+        latest_result.braking_distance_m >= 0.0)
+    {
+        const double final_raw_time =
+            latest_result.velocity_time.back().first;
+
+        const double final_raw_distance =
+            latest_result.velocity_distance.back().first;
+
+        const double raw_brake_time =
+            final_raw_time -
+            latest_result.braking_time_s;
+
+        const double raw_brake_distance =
+            final_raw_distance -
+            latest_result.braking_distance_m;
+
+        export_brake_time =
+            have_first_time
+                ? raw_brake_time - first_time
+                : raw_brake_time;
+
+        export_brake_distance =
+            have_first_distance
+                ? raw_brake_distance - first_distance
+                : raw_brake_distance;
+
+        switch (latest_result.braking_type)
+        {
+            case robot_motion_test_data::BrakingType::STO:
+                export_brake_label = "STO ACTIVATED";
+                break;
+
+            case robot_motion_test_data::BrakingType::SAFE_STOP:
+                export_brake_label = "SAFE-STOP ACTIVATED";
+                break;
+
+            case robot_motion_test_data::BrakingType::NORMAL_BRAKING:
+                export_brake_label = "NORMAL BRAKING ACTIVATED";
+                break;
+
+            case robot_motion_test_data::BrakingType::NONE:
+                break;
+        }
+
+        export_brake_marker =
+            !export_brake_label.isEmpty() &&
+            std::isfinite(export_brake_time) &&
+            std::isfinite(export_brake_distance);
+    }
+
     if (!saveGraph(
             "Velocity vs Time",
             "Time (s)",
             "Velocity (m/s)",
             velocity_time_data,
             export_directory +
-                "/velocity_time.png"))
+                "/velocity_time.png",
+            export_brake_marker,
+            export_brake_time,
+            export_brake_label))
     {
         QMessageBox::warning(
             this,
@@ -1020,7 +1108,10 @@ void MainWindow::exportResults()
             "Velocity (m/s)",
             velocity_distance_data,
             export_directory +
-                "/velocity_distance.png"))
+                "/velocity_distance.png",
+            export_brake_marker,
+            export_brake_distance,
+            export_brake_label))
     {
         QMessageBox::warning(
             this,
@@ -1037,7 +1128,10 @@ void MainWindow::exportResults()
                 "Acceleration (m/s²)",
                 acceleration_time_data,
                 export_directory +
-                    "/acceleration_time.png"))
+                    "/acceleration_time.png",
+                false,
+                0.0,
+                QString()))
         {
             QMessageBox::warning(
                 this,
@@ -1083,6 +1177,10 @@ void MainWindow::exportResults()
 
         case robot_motion_test_data::BrakingType::SAFE_STOP:
             braking_type = "SAFE_STOP";
+            break;
+
+        case robot_motion_test_data::BrakingType::NORMAL_BRAKING:
+            braking_type = "NORMAL_BRAKING";
             break;
 
         case robot_motion_test_data::BrakingType::NONE:
@@ -1637,6 +1735,12 @@ void MainWindow::updateTestCaseList()
         case robot_motion_test_data::
             BrakingType::SAFE_STOP:
             braking_text = "Safe-Stop";
+            break;
+        
+        
+        case robot_motion_test_data::
+            BrakingType::NORMAL_BRAKING:
+            braking_text = "Normal Braking";
             break;
 
         case robot_motion_test_data::

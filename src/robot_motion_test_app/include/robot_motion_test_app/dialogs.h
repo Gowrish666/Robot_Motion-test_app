@@ -30,7 +30,8 @@ public:
 
 private slots:
 
-    void onLoadConditionChanged(int index);
+    void onLoadConditionChanged(
+        int index);
 
 private:
 
@@ -41,6 +42,7 @@ private:
 
     Ui::AddTestCase* ui_;
 };
+
 
 class LoadPromptDialog : public QDialog
 {

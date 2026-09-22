@@ -11,6 +11,7 @@ namespace robot_motion_test_data
     {
         STO,
         SAFE_STOP,
+        NORMAL_BRAKING,
         NONE
     };
 
@@ -41,21 +42,38 @@ namespace robot_motion_test_data
     {
         std::string test_case_name;
         std::string executed_at;
+
         std::string start_waypoint_id;
         std::string goal_waypoint_id;
+
         int iterations_run = 0;
+
         double max_velocity_achieved_mps = 0.0;
         double min_velocity_achieved_mps = 0.0;
         double acceleration_achieved_mps2 = 0.0;
-        LoadCondition load_condition = LoadCondition::NO_LOAD;
+
+        LoadCondition load_condition =
+            LoadCondition::NO_LOAD;
+
         double load_mass_kg = 0.0;
-        BrakingType braking_type = BrakingType::NONE;
+
+        BrakingType braking_type =
+            BrakingType::NONE;
+
         double braking_distance_m = 0.0;
         double braking_time_s = 0.0;
-        TestStatus status = TestStatus::COMPLETED;
-        std::vector<std::pair<double,double>> velocity_time;
-        std::vector<std::pair<double,double>> velocity_distance;
-        std::vector<std::pair<double,double>> acceleration_time;
+
+        TestStatus status =
+            TestStatus::COMPLETED;
+
+        std::vector<std::pair<double, double>>
+            velocity_time;
+
+        std::vector<std::pair<double, double>>
+            velocity_distance;
+
+        std::vector<std::pair<double, double>>
+            acceleration_time;
     };
 }
 

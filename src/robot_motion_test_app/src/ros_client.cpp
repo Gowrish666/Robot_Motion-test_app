@@ -5,6 +5,7 @@
 #include <actionlib_msgs/GoalStatusArray.h>
 
 #include <std_msgs/Bool.h>
+#include <geometry_msgs/Twist.h>
 
 #include <dynamic_reconfigure/Config.h>
 
@@ -15,7 +16,9 @@
 RosClient::RosClient(QObject* parent)
     : QObject(parent)
 {
-   
+    // ============================================================
+    // GRAPH
+    // ============================================================
 
     graph_subscriber_ =
         node_handle_.subscribe(
@@ -25,7 +28,9 @@ RosClient::RosClient(QObject* parent)
             this);
 
 
-   
+    // ============================================================
+    // TELEMETRY
+    // ============================================================
 
     telemetry_subscriber_ =
         node_handle_.subscribe(
@@ -34,7 +39,11 @@ RosClient::RosClient(QObject* parent)
             &RosClient::telemetryCallback,
             this);
 
-    
+
+    // ============================================================
+    // BRAKE FEEDBACK
+    // ============================================================
+
     sto_feedback_subscriber_ =
         node_handle_.subscribe(
             "/brake_feedback/sto",
@@ -50,7 +59,9 @@ RosClient::RosClient(QObject* parent)
             this);
 
 
-   
+    // ============================================================
+    // EXECUTE MISSION
+    // ============================================================
 
     execute_mission_goal_publisher_ =
         node_handle_.advertise<
@@ -59,6 +70,13 @@ RosClient::RosClient(QObject* parent)
                 1);
 
 
+    /*
+     * Keep the existing result subscriber.
+     *
+     * The real completion handling is now also done through
+     * /execute_mission/status because that is the topic reporting
+     * the actual mission state on the robot.
+     */
     execute_mission_result_subscriber_ =
         node_handle_.subscribe(
             "/execute_mission/result",
@@ -67,8 +85,18 @@ RosClient::RosClient(QObject* parent)
             this);
 
 
-    // ExecuteMission status subscriber.
-    // The mission executor reports mission completion on this topic.
+    /*
+     * IMPORTANT:
+     *
+     * The robot reports ExecuteMission completion through
+     *
+     *     /execute_mission/status
+     *
+     * with actionlib_msgs/GoalStatusArray.
+     *
+     * This is required for the return-to-start mission to notify
+     * TestExecutionController that the iteration has completed.
+     */
     execute_mission_status_subscriber_ =
         node_handle_.subscribe(
             "/execute_mission/status",
@@ -77,7 +105,9 @@ RosClient::RosClient(QObject* parent)
             this);
 
 
-    
+    // ============================================================
+    // DYNAMIC RECONFIGURE
+    // ============================================================
 
     motion_config_client_ =
         node_handle_.serviceClient<
@@ -91,7 +121,9 @@ RosClient::RosClient(QObject* parent)
                 "/controller_node/set_parameters");
 
 
-   
+    // ============================================================
+    // STO / SAFE-STOP
+    // ============================================================
 
     sto_publisher_ =
         node_handle_.advertise<std_msgs::Bool>(
@@ -105,7 +137,12 @@ RosClient::RosClient(QObject* parent)
             1);
 
 
-   
+    // ============================================================
+    // EXECUTE MISSION CANCEL
+    //
+    // Used by the normal STOP button and Normal Braking.
+    // STO / SAFE-STOP automatic activation does NOT call this.
+    // ============================================================
 
     mission_cancel_publisher_ =
         node_handle_.advertise<actionlib_msgs::GoalID>(
@@ -113,7 +150,19 @@ RosClient::RosClient(QObject* parent)
             1);
 
 
-   
+    // ============================================================
+    // NORMAL BRAKING STOP COMMAND
+    // ============================================================
+
+    normal_brake_stop_publisher_ =
+        node_handle_.advertise<geometry_msgs::Twist>(
+            "/cmd_vel",
+            1);
+
+
+    // ============================================================
+    // ROS SPINNER
+    // ============================================================
 
     spinner_ =
         std::make_unique<ros::AsyncSpinner>(1);
@@ -131,6 +180,9 @@ RosClient::~RosClient()
 }
 
 
+// ================================================================
+// WAYPOINTS
+// ================================================================
 
 QStringList RosClient::waypointIds() const
 {
@@ -138,7 +190,9 @@ QStringList RosClient::waypointIds() const
 }
 
 
-
+// ================================================================
+// GRAPH CALLBACK
+// ================================================================
 
 void RosClient::graphCallback(
     const graph_msgs::Graph::ConstPtr& msg)
@@ -204,7 +258,9 @@ void RosClient::graphCallback(
 }
 
 
-
+// ================================================================
+// TELEMETRY CALLBACK
+// ================================================================
 
 void RosClient::telemetryCallback(
     const std_msgs::Float64MultiArray::ConstPtr& msg)
@@ -222,10 +278,8 @@ void RosClient::telemetryCallback(
     const double time =
         msg->data[0];
 
-
     const double velocity =
         msg->data[1];
-
 
     const double distance =
         msg->data[2];
@@ -238,6 +292,9 @@ void RosClient::telemetryCallback(
 }
 
 
+// ================================================================
+// BRAKE FEEDBACK
+// ================================================================
 
 void RosClient::stoFeedbackCallback(
     const std_msgs::Bool::ConstPtr& msg)
@@ -253,72 +310,39 @@ void RosClient::safeStopFeedbackCallback(
 }
 
 
-
+// ================================================================
+// EXECUTE MISSION RESULT CALLBACK
+// ================================================================
 
 void RosClient::executeMissionResultCallback(
     const mission_msgs::ExecuteMissionActionResult::ConstPtr& msg)
 {
+    /*
+     * Keep this callback for compatibility with the existing
+     * ExecuteMission result topic.
+     *
+     * The actual robot completion is handled through
+     * /execute_mission/status.
+     */
     if (msg->status.status ==
         actionlib_msgs::GoalStatus::SUCCEEDED)
     {
-        const QString goalId =
-            QString::fromStdString(
-                msg->status.goal_id.id);
+        ROS_INFO(
+            "ExecuteMission result reports SUCCEEDED.");
 
         /*
-         * If a goal ID is available, make sure this result belongs
-         * to the currently active goal.
+         * Do not emit goalReached() here.
          *
-         * This prevents an old mission result from being interpreted
-         * as completion of a newer return mission.
+         * /execute_mission/status is the authoritative completion
+         * source used by this application.
          */
-        if (!goalId.isEmpty() &&
-            !active_goal_id_.isEmpty() &&
-            goalId != active_goal_id_)
-        {
-            ROS_INFO(
-                "Ignoring ExecuteMission result for old goal: %s",
-                goalId.toStdString().c_str());
-
-            return;
-        }
-
-        if (!goalId.isEmpty())
-        {
-            if (completed_goal_id_ == goalId)
-            {
-                return;
-            }
-
-            completed_goal_id_ = goalId;
-        }
-
-        ROS_INFO(
-            "==================================================");
-
-        ROS_INFO(
-            "ExecuteMission goal reached successfully.");
-
-        if (!goalId.isEmpty())
-        {
-            ROS_INFO(
-                "  goal_id = %s",
-                goalId.toStdString().c_str());
-        }
-
-        ROS_INFO(
-            "Waypoint mission completed.");
-
-        ROS_INFO(
-            "==================================================");
-
-
-        emit goalReached();
     }
 }
 
 
-
+// ================================================================
+// EXECUTE MISSION STATUS CALLBACK
+// ================================================================
 
 void RosClient::executeMissionStatusCallback(
     const actionlib_msgs::GoalStatusArray::ConstPtr& msg)
@@ -329,35 +353,49 @@ void RosClient::executeMissionStatusCallback(
             QString::fromStdString(
                 status.goal_id.id);
 
+
         if (goalId.isEmpty())
         {
             continue;
         }
 
+
         /*
-         * Ignore status messages belonging to an older mission.
-         *
-         * This is important because /execute_mission/status can
-         * continue publishing SUCCEEDED for a completed goal.
+         * Ignore missions that were started before the currently
+         * active mission.
          */
         if (goalId != active_goal_id_)
         {
             continue;
         }
 
+
+        ROS_INFO(
+            "ExecuteMission status: status=%d goal_id='%s'",
+            status.status,
+            goalId.toStdString().c_str());
+
+
+        // ========================================================
+        // SUCCESS
+        // ========================================================
+
         if (status.status ==
             actionlib_msgs::GoalStatus::SUCCEEDED)
         {
             /*
-             * The same SUCCEEDED status can be published multiple
-             * times. Only notify the controller once for this goal.
+             * Prevent the same mission from generating
+             * goalReached() more than once.
              */
             if (completed_goal_id_ == goalId)
             {
                 return;
             }
 
-            completed_goal_id_ = goalId;
+
+            completed_goal_id_ =
+                goalId;
+
 
             ROS_INFO(
                 "==================================================");
@@ -376,6 +414,7 @@ void RosClient::executeMissionStatusCallback(
             ROS_INFO(
                 "==================================================");
 
+
             emit goalReached();
 
             return;
@@ -384,7 +423,9 @@ void RosClient::executeMissionStatusCallback(
 }
 
 
-
+// ================================================================
+// CONFIGURE MOTION
+// ================================================================
 
 bool RosClient::configureMotion(
     double maxVelocity,
@@ -410,7 +451,9 @@ bool RosClient::configureMotion(
     }
 
 
-   
+    // ============================================================
+    // PLANNER CONFIGURATION
+    // ============================================================
 
     if (!motion_config_client_.waitForExistence(
             ros::Duration(1.0)))
@@ -481,7 +524,9 @@ bool RosClient::configureMotion(
         acceleration);
 
 
- 
+    // ============================================================
+    // CONTROLLER CONFIGURATION
+    // ============================================================
 
     if (!controller_config_client_.waitForExistence(
             ros::Duration(1.0)))
@@ -584,113 +629,10 @@ bool RosClient::configureMotion(
     return true;
 }
 
-bool RosClient::sendGoalByNodeId(int nodeId)
-{
-    if (nodeId < 0)
-    {
-        ROS_ERROR(
-            "Cannot send mission goal: "
-            "invalid node ID.");
 
-        return false;
-    }
-
-    const ros::Time now =
-        ros::Time::now();
-
-    const uint64_t missionIdMilliseconds =
-        static_cast<uint64_t>(
-            now.toSec() * 1000.0);
-
-    const std::string missionId =
-        std::to_string(missionIdMilliseconds);
-
-    const std::string xmlContent =
-        "<?xml version=\"1.0\"?>\n"
-        "<root main_tree_to_execute=\"BehaviorTree\">\n"
-        "    <BehaviorTree ID=\"BehaviorTree\">\n"
-        "        <Sequence name=\"1\">"
-        "<Action ID=\"MoveToNode\" node_id_list=\"" +
-        std::to_string(nodeId) +
-        "\" name=\"MoveToNode_1_null\"/>"
-        "</Sequence>\n"
-        "    </BehaviorTree>\n"
-        "</root>";
-
-    mission_msgs::ExecuteMissionActionGoal message;
-
-    message.header.stamp =
-        now;
-
-    message.goal_id.stamp =
-        now;
-
-    message.goal_id.id =
-        "goal_" +
-        std::to_string(now.toSec()) +
-        "_" +
-        missionId;
-
-    /*
-     * Store the exact goal ID that was sent to mission_executor.
-     *
-     * /execute_mission/status will be filtered using this ID.
-     */
-    active_goal_id_ =
-        QString::fromStdString(
-            message.goal_id.id);
-
-    completed_goal_id_.clear();
-
-    message.goal.xml_content =
-        xmlContent;
-
-    message.goal.mission_id =
-        missionId;
-
-    message.goal.mission_name =
-        missionId;
-
-    message.goal.execution_mode =
-        2;
-
-    ROS_INFO(
-        "==================================================");
-
-    ROS_INFO(
-        "Sending ExecuteMission goal using manual node ID");
-
-    ROS_INFO(
-        "  node_id    = %d",
-        nodeId);
-
-    ROS_INFO(
-        "  mission_id = %s",
-        missionId.c_str());
-
-    ROS_INFO(
-        "  goal_id    = %s",
-        message.goal_id.id.c_str());
-
-    ROS_INFO(
-        "  execution_mode = 2");
-
-    ROS_INFO(
-        "  XML:");
-
-    ROS_INFO(
-        "%s",
-        xmlContent.c_str());
-
-    ROS_INFO(
-        "==================================================");
-
-    execute_mission_goal_publisher_.publish(
-        message);
-
-    return true;
-}
-
+// ================================================================
+// SEND GOAL
+// ================================================================
 
 bool RosClient::sendGoal(
     const QString& startWaypoint,
@@ -758,10 +700,8 @@ bool RosClient::sendGoal(
     message.header.stamp =
         now;
 
-
     message.goal_id.stamp =
         now;
-
 
     message.goal_id.id =
         "goal_" +
@@ -770,33 +710,32 @@ bool RosClient::sendGoal(
         "_" +
         missionId;
 
+    message.goal.xml_content =
+        xmlContent;
+
+    message.goal.mission_id =
+        missionId;
+
+    message.goal.mission_name =
+        missionId;
+
+    message.goal.execution_mode =
+        2;
+
+
     /*
-     * Store the exact goal ID that was sent to mission_executor.
+     * IMPORTANT:
      *
-     * This allows /execute_mission/status to identify completion
-     * of the currently active forward/return mission.
+     * Store this exact goal ID before publishing.
+     *
+     * The status callback uses this ID to identify the current
+     * forward or return mission.
      */
     active_goal_id_ =
         QString::fromStdString(
             message.goal_id.id);
 
     completed_goal_id_.clear();
-
-
-    message.goal.xml_content =
-        xmlContent;
-
-
-    message.goal.mission_id =
-        missionId;
-
-
-    message.goal.mission_name =
-        missionId;
-
-
-    message.goal.execution_mode =
-        2;
 
 
     ROS_INFO(
@@ -843,7 +782,133 @@ bool RosClient::sendGoal(
 }
 
 
+// ================================================================
+// SEND GOAL BY NODE ID
+// ================================================================
 
+bool RosClient::sendGoalByNodeId(
+    int nodeId)
+{
+    if (nodeId < 0)
+    {
+        ROS_ERROR(
+            "Cannot send mission goal: "
+            "invalid node ID: %d",
+            nodeId);
+
+        return false;
+    }
+
+
+    const ros::Time now =
+        ros::Time::now();
+
+
+    const uint64_t missionIdMilliseconds =
+        static_cast<uint64_t>(
+            now.toSec() * 1000.0);
+
+
+    const std::string missionId =
+        std::to_string(
+            missionIdMilliseconds);
+
+
+    const std::string xmlContent =
+        "<?xml version=\"1.0\"?>\n"
+        "<root main_tree_to_execute=\"BehaviorTree\">\n"
+        "    <BehaviorTree ID=\"BehaviorTree\">\n"
+        "        <Sequence name=\"1\">"
+        "<Action ID=\"MoveToNode\" node_id_list=\"" +
+        std::to_string(nodeId) +
+        "\" name=\"MoveToNode_1_null\"/>"
+        "</Sequence>\n"
+        "    </BehaviorTree>\n"
+        "</root>";
+
+
+    mission_msgs::ExecuteMissionActionGoal message;
+
+
+    message.header.stamp =
+        now;
+
+    message.goal_id.stamp =
+        now;
+
+    message.goal_id.id =
+        "goal_" +
+        std::to_string(
+            now.toSec()) +
+        "_" +
+        missionId;
+
+    message.goal.xml_content =
+        xmlContent;
+
+    message.goal.mission_id =
+        missionId;
+
+    message.goal.mission_name =
+        missionId;
+
+    message.goal.execution_mode =
+        2;
+
+
+    /*
+     * Store this goal ID as the active mission.
+     */
+    active_goal_id_ =
+        QString::fromStdString(
+            message.goal_id.id);
+
+    completed_goal_id_.clear();
+
+
+    ROS_INFO(
+        "==================================================");
+
+    ROS_INFO(
+        "Sending ExecuteMission goal by node ID");
+
+    ROS_INFO(
+        "  node_id    = %d",
+        nodeId);
+
+    ROS_INFO(
+        "  mission_id = %s",
+        missionId.c_str());
+
+    ROS_INFO(
+        "  goal_id    = %s",
+        message.goal_id.id.c_str());
+
+    ROS_INFO(
+        "  execution_mode = 2");
+
+    ROS_INFO(
+        "  XML:");
+
+    ROS_INFO(
+        "%s",
+        xmlContent.c_str());
+
+    ROS_INFO(
+        "==================================================");
+
+
+    execute_mission_goal_publisher_.publish(
+        message);
+
+
+    return true;
+}
+
+
+// ================================================================
+// STO
+// ================================================================
 
 void RosClient::triggerSto()
 {
@@ -859,7 +924,9 @@ void RosClient::triggerSto()
 }
 
 
-
+// ================================================================
+// RELEASE STO
+// ================================================================
 
 void RosClient::releaseSto()
 {
@@ -875,7 +942,9 @@ void RosClient::releaseSto()
 }
 
 
-
+// ================================================================
+// SAFE-STOP
+// ================================================================
 
 void RosClient::triggerSafeStop()
 {
@@ -892,7 +961,9 @@ void RosClient::triggerSafeStop()
 }
 
 
-
+// ================================================================
+// RELEASE SAFE-STOP
+// ================================================================
 
 void RosClient::releaseSafeStop()
 {
@@ -909,7 +980,9 @@ void RosClient::releaseSafeStop()
 }
 
 
-
+// ================================================================
+// NORMAL STOP
+// ================================================================
 
 void RosClient::stopRobot()
 {
@@ -921,4 +994,28 @@ void RosClient::stopRobot()
     ROS_INFO(
         "ExecuteMission cancellation published for "
         "normal simulated stop.");
+}
+
+
+// ================================================================
+// NORMAL BRAKING STOP
+// ================================================================
+
+void RosClient::publishNormalBrakeStop()
+{
+    geometry_msgs::Twist stop_message;
+
+    stop_message.linear.x = 0.0;
+    stop_message.linear.y = 0.0;
+    stop_message.linear.z = 0.0;
+
+    stop_message.angular.x = 0.0;
+    stop_message.angular.y = 0.0;
+    stop_message.angular.z = 0.0;
+
+    normal_brake_stop_publisher_.publish(
+        stop_message);
+
+    ROS_INFO(
+        "Normal braking zero Twist published on /cmd_vel");
 }

@@ -25,6 +25,8 @@
 #include <std_msgs/Bool.h>
 #include <std_msgs/String.h>
 
+#include <geometry_msgs/Twist.h>
+
 #include <dynamic_reconfigure/Reconfigure.h>
 
 class RosClient : public QObject
@@ -32,6 +34,7 @@ class RosClient : public QObject
     Q_OBJECT
 
 public:
+
     explicit RosClient(
         QObject* parent = nullptr);
 
@@ -60,6 +63,8 @@ public:
 
     void stopRobot();
 
+    void publishNormalBrakeStop();
+
 signals:
 
     void velocityUpdated(
@@ -71,10 +76,11 @@ signals:
 
     void goalReached();
 
-    // Brake feedback signals
-    void stoFeedbackUpdated(bool active);
+    void stoFeedbackUpdated(
+        bool active);
 
-    void safeStopFeedbackUpdated(bool active);
+    void safeStopFeedbackUpdated(
+        bool active);
 
 private:
 
@@ -87,7 +93,6 @@ private:
     void goalReachedCallback(
         const std_msgs::Bool::ConstPtr& msg);
 
-    // Brake feedback callbacks
     void stoFeedbackCallback(
         const std_msgs::Bool::ConstPtr& msg);
 
@@ -106,7 +111,6 @@ private:
 
     ros::Subscriber telemetry_subscriber_;
 
-    // Brake feedback subscribers
     ros::Subscriber sto_feedback_subscriber_;
 
     ros::Subscriber safe_stop_feedback_subscriber_;
@@ -119,7 +123,8 @@ private:
 
     ros::Publisher execute_mission_goal_publisher_;
 
-    QHash<QString, int> waypoint_name_to_id_;
+    QHash<QString, int>
+        waypoint_name_to_id_;
 
     QStringList waypoint_ids_;
 
@@ -133,12 +138,14 @@ private:
 
     ros::Publisher mission_cancel_publisher_;
 
-    // ExecuteMission goal tracking
+    ros::Publisher normal_brake_stop_publisher_;
+
     QString active_goal_id_;
 
     QString completed_goal_id_;
 
-    std::unique_ptr<ros::AsyncSpinner> spinner_;
+    std::unique_ptr<ros::AsyncSpinner>
+        spinner_;
 };
 
 #endif

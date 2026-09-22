@@ -1,0 +1,26 @@
+Automated Robot Motion Testing Tool
+===================================
+
+TEST CONDITIONS
+---------------
+Test case: test_case_01
+Executed at: 2026-09-14T08:56:51
+Start waypoint: v75
+Goal waypoint: v74
+Iterations: 2
+Load condition: NO_LOAD
+Load mass (kg): N/A
+Braking type: NONE
+
+RESULTS
+-------
+Max velocity achieved (m/s): 0
+Min velocity achieved (m/s): 1e+30
+Acceleration achieved (m/s^2): 0.926828
+Braking distance (m): 0
+Status: COMPLETED
+
+Exported graph files:
+velocity_time.png
+velocity_distance.png
+acceleration_time.png

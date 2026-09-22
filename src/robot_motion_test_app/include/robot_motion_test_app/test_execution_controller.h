@@ -16,26 +16,35 @@ class TestExecutionController : public QObject
     Q_OBJECT
 
 public:
+
     explicit TestExecutionController(
         RosClient* rosClient,
         QObject* parent = nullptr);
 
     void setTestCases(
-        const std::vector<robot_motion_test_data::TestCase>& testCases);
+        const std::vector<
+            robot_motion_test_data::TestCase>& testCases);
 
     void setWaypoints(
         const QString& startWaypoint,
         const QString& goalWaypoint);
 
     void start();
+
     void stop();
-    void setManualWaypoints(int startNodeId, int goalNodeId);
-void clearManualWaypoints();
+
+    void setManualWaypoints(
+        int startNodeId,
+        int goalNodeId);
+
+    void clearManualWaypoints();
+
     void loadAccepted();
 
     bool isRunning() const;
 
 signals:
+
     void testStarted(
         const QString& name,
         int iteration);
@@ -68,6 +77,7 @@ signals:
         double distance);
 
 private slots:
+
     void telemetryUpdated(
         double velocity,
         double distance,
@@ -75,16 +85,18 @@ private slots:
 
     void goalReached();
 
-    // Brake feedback slots
-    void stoFeedbackUpdated(bool active);
+    void stoFeedbackUpdated(
+        bool active);
 
-    void safeStopFeedbackUpdated(bool active);
+    void safeStopFeedbackUpdated(
+        bool active);
 
     void maxVelocityHoldFinished();
 
     void zeroVelocityHoldFinished();
 
 private:
+
     enum class Phase
     {
         IDLE,
@@ -96,23 +108,34 @@ private:
     };
 
     void startCurrentTest();
+
     void finishCurrentIteration();
+
     void clearCurrentData();
+
     void startMaximumVelocityHold();
+
     void activateBrakeAndStop();
+
     void releaseBrakeAndReturn();
+
     void startZeroVelocityHold();
+
     void startReturnToStart();
 
     RosClient* ros_client_;
 
-    std::vector<robot_motion_test_data::TestCase> test_cases_;
+    std::vector<
+        robot_motion_test_data::TestCase>
+        test_cases_;
 
     QString start_waypoint_;
     QString goal_waypoint_;
+
     bool manual_waypoint_mode_;
-int manual_start_node_id_;
-int manual_goal_node_id_;
+
+    int manual_start_node_id_;
+    int manual_goal_node_id_;
 
     bool running_;
 
@@ -128,7 +151,6 @@ int manual_goal_node_id_;
     bool brake_released_;
     bool return_motion_detected_;
 
-    // Brake feedback state
     bool sto_feedback_active_;
     bool safe_stop_feedback_active_;
 
@@ -152,9 +174,14 @@ int manual_goal_node_id_;
     QTimer max_velocity_hold_timer_;
     QTimer zero_velocity_hold_timer_;
 
-    QVector<QPointF> velocity_time_data_;
-    QVector<QPointF> velocity_distance_data_;
-    QVector<QPointF> acceleration_time_data_;
+    QVector<QPointF>
+        velocity_time_data_;
+
+    QVector<QPointF>
+        velocity_distance_data_;
+
+    QVector<QPointF>
+        acceleration_time_data_;
 };
 
 #endif

@@ -84,21 +84,31 @@
 
      <item row="3" column="1">
       <widget class="QComboBox" name="brakingTypeComboBox">
+
        <item>
         <property name="text">
          <string>STO</string>
         </property>
        </item>
+
        <item>
         <property name="text">
          <string>Safe-Stop</string>
         </property>
        </item>
+
+       <item>
+        <property name="text">
+         <string>Normal Braking</string>
+        </property>
+       </item>
+
        <item>
         <property name="text">
          <string>No Braking</string>
         </property>
        </item>
+
       </widget>
      </item>
 
@@ -193,6 +203,7 @@
  </widget>
 
  <resources/>
+
  <connections>
 
   <connection>
@@ -210,4 +221,5 @@
   </connection>
 
  </connections>
+
 </ui>

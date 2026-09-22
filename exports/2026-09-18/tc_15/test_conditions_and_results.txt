@@ -1,0 +1,25 @@
+TEST CONDITIONS AND RESULTS
+============================
+
+Test Case Name: tc_15
+Execution Timestamp: 2026-09-18 12:27:32 UTC
+
+TEST CONDITIONS
+---------------
+Max Velocity Target (m/s): 1.2
+Acceleration Target (m/s^2): 0.7
+Braking Type: NONE
+Load Condition: UNDER_LOAD
+Load Mass (kg): 100
+Iterations: 1
+Start Waypoint ID: 
+Goal Waypoint ID: 
+
+COMPUTED RESULTS
+----------------
+Max Velocity Achieved (m/s): 1.15335
+Min Velocity Achieved (m/s): 7.90207e-07
+Acceleration Achieved (m/s^2): 0.7
+Braking Distance (m): 0
+Braking Time (s): 0
+Status: COMPLETED
