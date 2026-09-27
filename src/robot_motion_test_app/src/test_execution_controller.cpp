@@ -85,9 +85,7 @@ TestExecutionController::TestExecutionController(
 }
 
 
-// ============================================================
-// SET TEST CASES
-// ============================================================
+
 
 void TestExecutionController::setTestCases(
     const std::vector<robot_motion_test_data::TestCase>& testCases)
@@ -96,9 +94,7 @@ void TestExecutionController::setTestCases(
 }
 
 
-// ============================================================
-// SET WAYPOINTS
-// ============================================================
+
 
 void TestExecutionController::setWaypoints(
     const QString& startWaypoint,
@@ -109,9 +105,6 @@ void TestExecutionController::setWaypoints(
 }
 
 
-// ============================================================
-// IS RUNNING
-// ============================================================
 
 bool TestExecutionController::isRunning() const
 {
@@ -119,9 +112,6 @@ bool TestExecutionController::isRunning() const
 }
 
 
-// ============================================================
-// START
-// ============================================================
 
 void TestExecutionController::start()
 {
@@ -217,9 +207,7 @@ void TestExecutionController::start()
 }
 
 
-// ============================================================
-// START CURRENT TEST
-// ============================================================
+
 
 void TestExecutionController::startCurrentTest()
 {
@@ -360,9 +348,7 @@ void TestExecutionController::startCurrentTest()
     QThread::msleep(300);
 
 
-    // ---------------------------------------------------------
-    // SEND TEST GOAL
-    // ---------------------------------------------------------
+
 
     bool goalSent = false;
 
@@ -420,9 +406,7 @@ void TestExecutionController::startCurrentTest()
     }
 
 
-    // ---------------------------------------------------------
-    // STATUS
-    // ---------------------------------------------------------
+   
 
     if (manual_waypoint_mode_)
     {
@@ -443,9 +427,6 @@ void TestExecutionController::startCurrentTest()
 }
 
 
-// ============================================================
-// LOAD ACCEPTED
-// ============================================================
 
 void TestExecutionController::loadAccepted()
 {
@@ -471,9 +452,7 @@ void TestExecutionController::loadAccepted()
 }
 
 
-// ============================================================
-// TELEMETRY UPDATED
-// ============================================================
+
 
 void TestExecutionController::telemetryUpdated(
     double velocity,
@@ -515,9 +494,7 @@ void TestExecutionController::telemetryUpdated(
             velocity);
 
 
-    // ---------------------------------------------------------
-    // ACCELERATION
-    // ---------------------------------------------------------
+  
 
     if (previous_time_ > 0.0 &&
         time > previous_time_)
@@ -550,9 +527,6 @@ void TestExecutionController::telemetryUpdated(
     previous_time_ = time;
 
 
-    // ---------------------------------------------------------
-    // TELEMETRY GRAPH DATA
-    // ---------------------------------------------------------
 
     if (phase_ == Phase::MOVING_TO_GOAL ||
         phase_ == Phase::HOLDING_MAX_VELOCITY ||
@@ -577,9 +551,7 @@ void TestExecutionController::telemetryUpdated(
     }
 
 
-    // =========================================================
-    // BRAKING COMPLETION
-    // =========================================================
+
 
     if (braking_started_ &&
         !brake_released_ &&
@@ -604,9 +576,7 @@ void TestExecutionController::telemetryUpdated(
                     time - braking_start_time_);
 
 
-            // -------------------------------------------------
-            // NORMAL BRAKING COMPLETE
-            // -------------------------------------------------
+         
 
             if (testCase.braking_type ==
                 robot_motion_test_data::BrakingType::NORMAL_BRAKING)
@@ -624,9 +594,7 @@ void TestExecutionController::telemetryUpdated(
             }
 
 
-            // -------------------------------------------------
-            // STO / SAFE-STOP
-            // -------------------------------------------------
+          
 
             releaseBrakeAndReturn();
 
@@ -635,31 +603,17 @@ void TestExecutionController::telemetryUpdated(
     }
 
 
-    // =========================================================
-    // MAXIMUM VELOCITY REACHED
-    // =========================================================
+   
 
     if (phase_ == Phase::MOVING_TO_GOAL &&
         velocity >= testCase.max_velocity_mps)
     {
-        // -----------------------------------------------------
-        // NO BRAKING
-        // -----------------------------------------------------
+     
 
         if (testCase.braking_type ==
             robot_motion_test_data::BrakingType::NONE)
         {
-            /*
-             * IMPORTANT:
-             *
-             * Do not stop the robot here.
-             * Do not change the phase.
-             *
-             * The ExecuteMission goal must continue until
-             * /execute_mission/status reports SUCCEEDED.
-             *
-             * goalReached() will then send the return goal.
-             */
+            
 
             if (!braking_started_)
             {
@@ -682,9 +636,7 @@ void TestExecutionController::telemetryUpdated(
         }
 
 
-        // -----------------------------------------------------
-        // NORMAL BRAKING
-        // -----------------------------------------------------
+   
 
         if (testCase.braking_type ==
             robot_motion_test_data::BrakingType::NORMAL_BRAKING)
@@ -714,9 +666,7 @@ void TestExecutionController::telemetryUpdated(
         }
 
 
-        // -----------------------------------------------------
-        // STO / SAFE-STOP
-        // -----------------------------------------------------
+       
 
         if (testCase.braking_type ==
                 robot_motion_test_data::BrakingType::STO ||
@@ -748,9 +698,6 @@ void TestExecutionController::telemetryUpdated(
     }
 
 
-    // =========================================================
-    // BRAKING PHASE
-    // =========================================================
 
     if (phase_ == Phase::BRAKING)
     {
@@ -803,9 +750,7 @@ void TestExecutionController::telemetryUpdated(
     }
 
 
-    // =========================================================
-    // ZERO VELOCITY HOLD
-    // =========================================================
+ 
 
     if (phase_ == Phase::HOLDING_ZERO_VELOCITY)
     {
@@ -813,9 +758,6 @@ void TestExecutionController::telemetryUpdated(
     }
 
 
-    // =========================================================
-    // RETURNING TO START
-    // =========================================================
 
     if (phase_ == Phase::RETURNING_TO_START)
     {
@@ -835,9 +777,7 @@ void TestExecutionController::telemetryUpdated(
 }
 
 
-// ============================================================
-// START MAXIMUM VELOCITY HOLD
-// ============================================================
+
 
 void TestExecutionController::startMaximumVelocityHold()
 {
@@ -865,15 +805,7 @@ void TestExecutionController::startMaximumVelocityHold()
         test_cases_[current_test_index_];
 
 
-    /*
-     * NORMAL BRAKING:
-     *
-     * 2-second maximum-velocity hold.
-     *
-     * STO / SAFE-STOP:
-     *
-     * Existing 1-second hold.
-     */
+  
 
     if (testCase.braking_type ==
         robot_motion_test_data::BrakingType::NORMAL_BRAKING)
@@ -887,9 +819,6 @@ void TestExecutionController::startMaximumVelocityHold()
 }
 
 
-// ============================================================
-// STO FEEDBACK
-// ============================================================
 
 void TestExecutionController::stoFeedbackUpdated(
     bool active)
@@ -898,9 +827,7 @@ void TestExecutionController::stoFeedbackUpdated(
 }
 
 
-// ============================================================
-// SAFE STOP FEEDBACK
-// ============================================================
+
 
 void TestExecutionController::safeStopFeedbackUpdated(
     bool active)
@@ -909,9 +836,7 @@ void TestExecutionController::safeStopFeedbackUpdated(
 }
 
 
-// ============================================================
-// MAX VELOCITY HOLD FINISHED
-// ============================================================
+
 
 void TestExecutionController::maxVelocityHoldFinished()
 {
@@ -954,9 +879,7 @@ void TestExecutionController::maxVelocityHoldFinished()
 }
 
 
-// ============================================================
-// ACTIVATE BRAKE AND STOP
-// ============================================================
+
 
 void TestExecutionController::activateBrakeAndStop()
 {
@@ -1002,9 +925,6 @@ void TestExecutionController::activateBrakeAndStop()
         false;
 
 
-    // ========================================================
-    // NORMAL BRAKING
-    // ========================================================
 
     if (testCase.braking_type ==
         robot_motion_test_data::BrakingType::NORMAL_BRAKING)
@@ -1014,15 +934,6 @@ void TestExecutionController::activateBrakeAndStop()
             "Activating normal braking.");
 
 
-        /*
-         * Normal braking is simulated by:
-         *
-         * 1. Cancel ExecuteMission.
-         * 2. Publish zero Twist on /cmd_vel.
-         * 3. Wait until telemetry reaches <= 0.03 m/s.
-         * 4. Calculate braking distance/time.
-         * 5. Return to the start waypoint.
-         */
 
         ros_client_->stopRobot();
 
@@ -1042,9 +953,7 @@ void TestExecutionController::activateBrakeAndStop()
     }
 
 
-    // ========================================================
-    // STO
-    // ========================================================
+   
 
     if (testCase.braking_type ==
         robot_motion_test_data::BrakingType::STO)
@@ -1063,9 +972,7 @@ void TestExecutionController::activateBrakeAndStop()
     }
 
 
-    // ========================================================
-    // SAFE STOP
-    // ========================================================
+
 
     else if (
         testCase.braking_type ==
@@ -1085,18 +992,7 @@ void TestExecutionController::activateBrakeAndStop()
     }
 
 
-    /*
-     * Existing STO / SAFE-STOP simulation behavior:
-     *
-     * The activation topic is published, but ExecuteMission
-     * continues to the goal.
-     *
-     * Do NOT call stopRobot().
-     * Do NOT enter the simulated BRAKING phase.
-     *
-     * The existing goalReached() path remains responsible
-     * for returning to the start waypoint.
-     */
+  
 
     phase_ =
         Phase::MOVING_TO_GOAL;
@@ -1108,9 +1004,7 @@ void TestExecutionController::activateBrakeAndStop()
 }
 
 
-// ============================================================
-// RELEASE BRAKE AND RETURN
-// ============================================================
+
 
 void TestExecutionController::releaseBrakeAndReturn()
 {
@@ -1173,9 +1067,6 @@ void TestExecutionController::releaseBrakeAndReturn()
 }
 
 
-// ============================================================
-// START ZERO VELOCITY HOLD
-// ============================================================
 
 void TestExecutionController::startZeroVelocityHold()
 {
@@ -1195,9 +1086,7 @@ void TestExecutionController::startZeroVelocityHold()
 }
 
 
-// ============================================================
-// ZERO VELOCITY HOLD FINISHED
-// ============================================================
+
 
 void TestExecutionController::zeroVelocityHoldFinished()
 {
@@ -1222,9 +1111,7 @@ void TestExecutionController::zeroVelocityHoldFinished()
 }
 
 
-// ============================================================
-// START RETURN TO START
-// ============================================================
+
 
 void TestExecutionController::startReturnToStart()
 {
@@ -1249,9 +1136,7 @@ void TestExecutionController::startReturnToStart()
         0.0;
 
 
-    // ---------------------------------------------------------
-    // SEND RETURN GOAL
-    // ---------------------------------------------------------
+    
 
     bool returnGoalSent =
         false;
@@ -1330,9 +1215,7 @@ void TestExecutionController::startReturnToStart()
 }
 
 
-// ============================================================
-// GOAL REACHED
-// ============================================================
+
 
 void TestExecutionController::goalReached()
 {
@@ -1360,24 +1243,11 @@ void TestExecutionController::goalReached()
         test_cases_[current_test_index_];
 
 
-    // ========================================================
-    // FORWARD GOAL REACHED
-    // ========================================================
+
 
     if (phase_ == Phase::MOVING_TO_GOAL)
     {
-        /*
-         * NORMAL / NONE:
-         *
-         * The forward ExecuteMission has completed.
-         * Start the return mission.
-         *
-         * STO / SAFE-STOP:
-         *
-         * If the brake is still active, do not start the
-         * return mission until the braking sequence has
-         * completed.
-         */
+      
 
         if (braking_started_ &&
             !brake_released_ &&
@@ -1407,9 +1277,7 @@ void TestExecutionController::goalReached()
     }
 
 
-    // ========================================================
-    // IGNORE CALLBACK DURING BRAKING / HOLDING
-    // ========================================================
+
 
     if (phase_ == Phase::HOLDING_MAX_VELOCITY ||
         phase_ == Phase::BRAKING ||
@@ -1422,24 +1290,9 @@ void TestExecutionController::goalReached()
     }
 
 
-    // ========================================================
-    // RETURN GOAL REACHED
-    // ========================================================
 
     if (phase_ == Phase::RETURNING_TO_START)
     {
-        /*
-         * IMPORTANT:
-         *
-         * Do NOT wait for return_motion_detected_ here.
-         *
-         * RosClient already filters /execute_mission/status
-         * using the active ExecuteMission goal ID.
-         *
-         * Therefore, when this callback reaches here while the
-         * controller is in RETURNING_TO_START, it is the
-         * successful completion of the return mission.
-         */
 
         phase_ =
             Phase::IDLE;
@@ -1451,16 +1304,7 @@ void TestExecutionController::goalReached()
             .arg(start_waypoint_));
 
 
-        /*
-         * This completes the current iteration.
-         *
-         * finishCurrentIteration() will:
-         *
-         *   - save the result if this was the final iteration
-         *   - start the next iteration if required
-         *   - start the next test case if required
-         *   - emit executionCompleted() when everything is done
-         */
+        
 
         finishCurrentIteration();
 
@@ -1468,9 +1312,7 @@ void TestExecutionController::goalReached()
         return;
     }
 }
-// ============================================================
-// SET MANUAL WAYPOINTS
-// ============================================================
+
 
 void TestExecutionController::setManualWaypoints(
     int startNodeId,
@@ -1494,9 +1336,7 @@ void TestExecutionController::setManualWaypoints(
 }
 
 
-// ============================================================
-// CLEAR MANUAL WAYPOINTS
-// ============================================================
+
 
 void TestExecutionController::clearManualWaypoints()
 {
@@ -1515,9 +1355,7 @@ void TestExecutionController::clearManualWaypoints()
 }
 
 
-// ============================================================
-// FINISH CURRENT ITERATION
-// ============================================================
+
 
 void TestExecutionController::finishCurrentIteration()
 {
@@ -1544,9 +1382,7 @@ void TestExecutionController::finishCurrentIteration()
             testCase.name));
 
 
-    // ========================================================
-    // SAVE FINAL RESULT
-    // ========================================================
+  
 
     if (current_iteration_ >= testCase.iterations)
     {
@@ -1567,13 +1403,26 @@ void TestExecutionController::finishCurrentIteration()
             result.test_case_name =
                 testCase.name;
 
+            if (manual_waypoint_mode_)
+        {
+         result.start_waypoint_id =
+           std::to_string(manual_start_node_id_);
 
-            result.start_waypoint_id =
-                start_waypoint_.toStdString();
+          result.goal_waypoint_id =
+            std::to_string(manual_goal_node_id_);
+        }
+       else
+         {
+         result.start_waypoint_id =
+            start_waypoint_.toStdString();
+
+          result.goal_waypoint_id =
+             goal_waypoint_.toStdString();
+            }
 
 
-            result.goal_waypoint_id =
-                goal_waypoint_.toStdString();
+
+            
 
 
             result.iterations_run =
@@ -1605,9 +1454,7 @@ void TestExecutionController::finishCurrentIteration()
             }
 
 
-            // -------------------------------------------------
-            // POSITIVE ACCELERATION
-            // -------------------------------------------------
+          
 
             double highest_valid_acceleration =
                 0.0;
@@ -1660,9 +1507,6 @@ void TestExecutionController::finishCurrentIteration()
                 robot_motion_test_data::TestStatus::COMPLETED;
 
 
-            // -------------------------------------------------
-            // VELOCITY / DISTANCE / ACCELERATION DATA
-            // -------------------------------------------------
 
             result.velocity_time.reserve(
                 velocity_time_data_.size());
@@ -1717,9 +1561,6 @@ void TestExecutionController::finishCurrentIteration()
     }
 
 
-    // ========================================================
-    // MORE ITERATIONS
-    // ========================================================
 
     if (current_iteration_ <
         testCase.iterations)
@@ -1734,9 +1575,7 @@ void TestExecutionController::finishCurrentIteration()
                 current_iteration_));
 
 
-        /*
-         * The robot is already back at the start waypoint.
-         */
+       
 
         startCurrentTest();
 
@@ -1744,9 +1583,7 @@ void TestExecutionController::finishCurrentIteration()
     }
 
 
-    // ========================================================
-    // NEXT TEST CASE
-    // ========================================================
+   
 
     ++current_test_index_;
 
@@ -1797,9 +1634,7 @@ void TestExecutionController::finishCurrentIteration()
 }
 
 
-// ============================================================
-// CLEAR CURRENT DATA
-// ============================================================
+
 
 void TestExecutionController::clearCurrentData()
 {
@@ -1878,9 +1713,7 @@ void TestExecutionController::clearCurrentData()
 }
 
 
-// ============================================================
-// STOP
-// ============================================================
+
 
 void TestExecutionController::stop()
 {
