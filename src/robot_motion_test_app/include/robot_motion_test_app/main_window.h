@@ -53,6 +53,7 @@ private:
     void updateWaypointList();
     void updateQueueController();
     void showMixedLoadWarningIfNeeded();
+    void showDistanceWarningIfNeeded();
     void clearRightDynamicPanel();
     void executionCompleted();
     void setTestCaseEditingEnabled(bool enabled);

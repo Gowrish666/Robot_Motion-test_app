@@ -24,6 +24,7 @@
 #include <QTextStream>
 
 #include <algorithm>
+#include <cmath>
 #include <utility>
 
 // Creates the main application window.
@@ -228,6 +229,44 @@ MainWindow::MainWindow(QWidget* parent)
 
             ui_->goalWaypointComboBox
                 ->setEnabled(!manual);
+
+            showMixedLoadWarningIfNeeded();
+        });
+
+    connect(
+        ui_->startWaypointComboBox,
+        &QComboBox::currentTextChanged,
+        this,
+        [this](const QString&)
+        {
+            showMixedLoadWarningIfNeeded();
+        });
+
+    connect(
+        ui_->goalWaypointComboBox,
+        &QComboBox::currentTextChanged,
+        this,
+        [this](const QString&)
+        {
+            showMixedLoadWarningIfNeeded();
+        });
+
+    connect(
+        manual_start_vertex_edit_,
+        &QLineEdit::textChanged,
+        this,
+        [this](const QString&)
+        {
+            showMixedLoadWarningIfNeeded();
+        });
+
+    connect(
+        manual_goal_vertex_edit_,
+        &QLineEdit::textChanged,
+        this,
+        [this](const QString&)
+        {
+            showMixedLoadWarningIfNeeded();
         });
 
     connect(
@@ -1945,6 +1984,15 @@ void MainWindow::updateTestCaseList()
             });
     }
 
+        if (testing_active_ &&
+        current_running_test_index_ >= 0 &&
+        current_running_test_index_ <
+            static_cast<int>(test_cases_.size()))
+    {
+        ui_->testCaseList->setCurrentRow(
+            current_running_test_index_);
+    }
+
     ui_->testCaseCountLabel->setText(
         QString("No: %1")
             .arg(test_cases_.size()));
@@ -1973,6 +2021,8 @@ void MainWindow::updateWaypointList()
 
     ui_->goalWaypointComboBox
         ->setCurrentIndex(-1);
+
+    showMixedLoadWarningIfNeeded();
 }
 
 // Updates the execution queue.
@@ -1982,32 +2032,218 @@ void MainWindow::updateQueueController()
         test_cases_);
 }
 
-// Displays the mixed-load warning when required.
+// Displays the mixed-load and route-distance warnings when required.
 void MainWindow::showMixedLoadWarningIfNeeded()
 {
     clearRightDynamicPanel();
 
-    if (!hasMixedLoadOrder() ||
-        mixed_order_overridden_)
+    if (hasMixedLoadOrder() &&
+        !mixed_order_overridden_)
+    {
+        warning_widget_ =
+            new QWidget(
+                ui_->rightDynamicContainer);
+
+        QVBoxLayout* layout =
+            new QVBoxLayout(
+                warning_widget_);
+
+        layout->setContentsMargins(
+            8,
+            12,
+            8,
+            12);
+
+        layout->setSpacing(8);
+
+        QLabel* icon =
+            new QLabel("⚠");
+
+        icon->setAlignment(
+            Qt::AlignCenter);
+
+        icon->setStyleSheet(
+            "font-size: 28px;"
+            "color: #d9a300;");
+
+        QLabel* text =
+            new QLabel(
+                "Unloaded conditions have "
+                "to be done first.");
+
+        text->setAlignment(
+            Qt::AlignCenter);
+
+        text->setWordWrap(true);
+
+        QPushButton* override_button =
+            new QPushButton(
+                "OVERRIDE");
+
+        override_button->setFixedHeight(
+            32);
+
+        layout->addWidget(icon);
+
+        layout->addWidget(text);
+
+        layout->addWidget(
+            override_button);
+
+        ui_->rightDynamicLayout
+            ->addWidget(
+                warning_widget_);
+
+        connect(
+            override_button,
+            &QPushButton::clicked,
+            this,
+            [this]()
+            {
+                mixed_order_overridden_ = true;
+
+                showMixedLoadWarningIfNeeded();
+            });
+    }
+
+    showDistanceWarningIfNeeded();
+}
+
+// Displays a non-blocking warning when the selected graph route is too
+// short to reach the configured maximum velocity.
+void MainWindow::showDistanceWarningIfNeeded()
+{
+    const bool manual_waypoint_mode =
+        manual_waypoint_mode_radio_ &&
+        manual_waypoint_mode_radio_->isChecked();
+
+    double route_distance = -1.0;
+
+    if (manual_waypoint_mode)
+    {
+        bool start_ok = false;
+        bool goal_ok = false;
+
+        const int start_node_id =
+            manual_start_vertex_edit_->text()
+                .trimmed()
+                .toInt(&start_ok);
+
+        const int goal_node_id =
+            manual_goal_vertex_edit_->text()
+                .trimmed()
+                .toInt(&goal_ok);
+
+        if (!start_ok ||
+            !goal_ok ||
+            start_node_id < 0 ||
+            goal_node_id < 0 ||
+            start_node_id == goal_node_id)
+        {
+            return;
+        }
+
+        route_distance =
+            ros_client_->routeDistanceByNodeId(
+                start_node_id,
+                goal_node_id);
+    }
+    else
+    {
+        const QString start_waypoint =
+            ui_->startWaypointComboBox
+                ->currentText()
+                .trimmed();
+
+        const QString goal_waypoint =
+            ui_->goalWaypointComboBox
+                ->currentText()
+                .trimmed();
+
+        if (start_waypoint.isEmpty() ||
+            goal_waypoint.isEmpty() ||
+            start_waypoint == goal_waypoint)
+        {
+            return;
+        }
+
+        route_distance =
+            ros_client_->routeDistance(
+                start_waypoint,
+                goal_waypoint);
+    }
+
+    if (!std::isfinite(route_distance) ||
+        route_distance < 0.0)
     {
         return;
     }
 
-    warning_widget_ =
+    QStringList warnings;
+
+    for (const auto& test_case :
+         test_cases_)
+    {
+        const double max_velocity =
+            test_case.max_velocity_mps;
+
+        const double acceleration =
+            test_case.acceleration_mps2;
+
+        if (!std::isfinite(max_velocity) ||
+            !std::isfinite(acceleration) ||
+            max_velocity <= 0.0 ||
+            acceleration <= 0.0)
+        {
+            continue;
+        }
+
+        const double minimum_distance =
+            (max_velocity * max_velocity) /
+            (2.0 * acceleration);
+
+        if (route_distance + 1e-9 <
+            minimum_distance)
+        {
+            warnings.append(
+                QString("%1: at least %2 m "
+                        "to reach %3 m/s")
+                    .arg(
+                        QString::fromStdString(
+                            test_case.name))
+                    .arg(
+                        minimum_distance,
+                        0,
+                        'f',
+                        2)
+                    .arg(
+                        max_velocity,
+                        0,
+                        'f',
+                        2));
+        }
+    }
+
+    if (warnings.isEmpty())
+    {
+        return;
+    }
+
+    QWidget* distance_warning_widget =
         new QWidget(
             ui_->rightDynamicContainer);
 
     QVBoxLayout* layout =
         new QVBoxLayout(
-            warning_widget_);
+            distance_warning_widget);
 
     layout->setContentsMargins(
         8,
-        12,
+        8,
         8,
         12);
 
-    layout->setSpacing(8);
+    layout->setSpacing(6);
 
     QLabel* icon =
         new QLabel("⚠");
@@ -2019,44 +2255,48 @@ void MainWindow::showMixedLoadWarningIfNeeded()
         "font-size: 28px;"
         "color: #d9a300;");
 
-    QLabel* text =
+    QLabel* title =
         new QLabel(
-            "Unloaded conditions have "
-            "to be done first.");
+            "The selected route is too short "
+            "to reach the configured velocity.");
 
-    text->setAlignment(
+    title->setAlignment(
         Qt::AlignCenter);
 
-    text->setWordWrap(true);
+    title->setWordWrap(true);
 
-    QPushButton* override_button =
-        new QPushButton(
-            "OVERRIDE");
+    QLabel* available =
+        new QLabel(
+            QString("Available route distance: %1 m")
+                .arg(
+                    route_distance,
+                    0,
+                    'f',
+                    2));
 
-    override_button->setFixedHeight(
-        32);
+    available->setAlignment(
+        Qt::AlignCenter);
+
+    available->setWordWrap(true);
+
+    QLabel* required =
+        new QLabel(
+            "Minimum distance required:\n" +
+            warnings.join("\n"));
+
+    required->setAlignment(
+        Qt::AlignCenter);
+
+    required->setWordWrap(true);
 
     layout->addWidget(icon);
-
-    layout->addWidget(text);
-
-    layout->addWidget(
-        override_button);
+    layout->addWidget(title);
+    layout->addWidget(available);
+    layout->addWidget(required);
 
     ui_->rightDynamicLayout
         ->addWidget(
-            warning_widget_);
-
-    connect(
-        override_button,
-        &QPushButton::clicked,
-        this,
-        [this]()
-        {
-            mixed_order_overridden_ = true;
-
-            clearRightDynamicPanel();
-        });
+            distance_warning_widget);
 }
 
 // Determines whether an unloaded case appears after a loaded case.

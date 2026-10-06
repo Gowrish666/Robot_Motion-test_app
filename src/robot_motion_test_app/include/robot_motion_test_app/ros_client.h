@@ -5,6 +5,7 @@
 #include <QString>
 #include <QStringList>
 #include <memory>
+#include <mutex>
 
 #include <ros/ros.h>
 
@@ -41,6 +42,14 @@ public:
     ~RosClient();
 
     QStringList waypointIds() const;
+
+    double routeDistance(
+        const QString& startWaypoint,
+        const QString& goalWaypoint) const;
+
+    double routeDistanceByNodeId(
+        int startNodeId,
+        int goalNodeId) const;
 
     bool sendGoal(
         const QString& startWaypoint,
@@ -105,6 +114,11 @@ private:
     void executeMissionStatusCallback(
         const actionlib_msgs::GoalStatusArray::ConstPtr& msg);
 
+    static double calculateRouteDistance(
+        const graph_msgs::Graph& graph,
+        int startNodeId,
+        int goalNodeId);
+
     ros::NodeHandle node_handle_;
 
     ros::Subscriber graph_subscriber_;
@@ -127,6 +141,10 @@ private:
         waypoint_name_to_id_;
 
     QStringList waypoint_ids_;
+
+    graph_msgs::Graph latest_graph_;
+
+    mutable std::mutex graph_mutex_;
 
     ros::ServiceClient motion_config_client_;
 

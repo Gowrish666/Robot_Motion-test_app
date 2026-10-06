@@ -12,6 +12,14 @@
 #include <mission_msgs/ExecuteMissionActionGoal.h>
 #include <mission_msgs/ExecuteMissionActionResult.h>
 
+#include <cmath>
+#include <functional>
+#include <limits>
+#include <queue>
+#include <unordered_map>
+#include <utility>
+#include <vector>
+
 
 RosClient::RosClient(QObject* parent)
     : QObject(parent)
@@ -186,6 +194,9 @@ RosClient::~RosClient()
 
 QStringList RosClient::waypointIds() const
 {
+    std::lock_guard<std::mutex> lock(
+        graph_mutex_);
+
     return waypoint_ids_;
 }
 
@@ -244,17 +255,315 @@ void RosClient::graphCallback(
     }
 
 
-    waypoint_name_to_id_ =
-        new_waypoint_name_to_id;
+    bool waypoints_changed = false;
 
-
-    if (new_waypoints != waypoint_ids_)
     {
-        waypoint_ids_ =
-            new_waypoints;
+        std::lock_guard<std::mutex> lock(
+            graph_mutex_);
 
+        latest_graph_ = *msg;
+
+        waypoint_name_to_id_ =
+            new_waypoint_name_to_id;
+
+        waypoints_changed =
+            (new_waypoints != waypoint_ids_);
+
+        if (waypoints_changed)
+        {
+            waypoint_ids_ =
+                new_waypoints;
+        }
+    }
+
+    if (waypoints_changed)
+    {
         emit waypointsUpdated();
     }
+}
+
+
+// ================================================================
+// ROUTE DISTANCE
+// ================================================================
+
+double RosClient::routeDistance(
+    const QString& startWaypoint,
+    const QString& goalWaypoint) const
+{
+    int startNodeId = -1;
+    int goalNodeId = -1;
+
+    {
+        std::lock_guard<std::mutex> lock(
+            graph_mutex_);
+
+        if (!waypoint_name_to_id_.contains(
+                startWaypoint) ||
+            !waypoint_name_to_id_.contains(
+                goalWaypoint))
+        {
+            return -1.0;
+        }
+
+        startNodeId =
+            waypoint_name_to_id_.value(
+                startWaypoint);
+
+        goalNodeId =
+            waypoint_name_to_id_.value(
+                goalWaypoint);
+    }
+
+    return routeDistanceByNodeId(
+        startNodeId,
+        goalNodeId);
+}
+
+
+double RosClient::routeDistanceByNodeId(
+    int startNodeId,
+    int goalNodeId) const
+{
+    if (startNodeId < 0 ||
+        goalNodeId < 0)
+    {
+        return -1.0;
+    }
+
+    graph_msgs::Graph graph_copy;
+
+    {
+        std::lock_guard<std::mutex> lock(
+            graph_mutex_);
+
+        graph_copy = latest_graph_;
+    }
+
+    return calculateRouteDistance(
+        graph_copy,
+        startNodeId,
+        goalNodeId);
+}
+
+
+double RosClient::calculateRouteDistance(
+    const graph_msgs::Graph& graph,
+    int startNodeId,
+    int goalNodeId)
+{
+    if (startNodeId == goalNodeId)
+    {
+        return 0.0;
+    }
+
+    using NodeId = uint32_t;
+    using Neighbor =
+        std::pair<NodeId, double>;
+
+    std::unordered_map<
+        NodeId,
+        std::vector<Neighbor>>
+        adjacency;
+
+    bool start_exists = false;
+    bool goal_exists = false;
+
+    for (const auto& vertex : graph.vertices)
+    {
+        if (static_cast<int>(vertex.id) ==
+            startNodeId)
+        {
+            start_exists = true;
+        }
+
+        if (static_cast<int>(vertex.id) ==
+            goalNodeId)
+        {
+            goal_exists = true;
+        }
+
+        adjacency.emplace(
+            vertex.id,
+            std::vector<Neighbor>());
+    }
+
+    if (!start_exists || !goal_exists)
+    {
+        return -1.0;
+    }
+
+    auto add_edge =
+        [&adjacency](
+            NodeId from,
+            NodeId to,
+            double length)
+        {
+            if (!std::isfinite(length) ||
+                length <= 0.0)
+            {
+                return;
+            }
+
+            adjacency[from].push_back(
+                std::make_pair(to, length));
+        };
+
+    for (const auto& edge : graph.edges)
+    {
+        const NodeId source =
+            edge.source_vertex_id;
+
+        const NodeId target =
+            edge.target_vertex_id;
+
+        const double length =
+            edge.length;
+
+        switch (edge.edge_direction_type)
+        {
+        case graph_msgs::Edge::FORWARD:
+            add_edge(
+                source,
+                target,
+                length);
+
+            if (edge.bidirectional)
+            {
+                add_edge(
+                    target,
+                    source,
+                    length);
+            }
+            break;
+
+        case graph_msgs::Edge::REVERSE:
+            add_edge(
+                target,
+                source,
+                length);
+
+            if (edge.bidirectional)
+            {
+                add_edge(
+                    source,
+                    target,
+                    length);
+            }
+            break;
+
+        case graph_msgs::Edge::BIDIRECTIONAL:
+            add_edge(
+                source,
+                target,
+                length);
+
+            add_edge(
+                target,
+                source,
+                length);
+            break;
+
+        default:
+            if (edge.bidirectional)
+            {
+                add_edge(
+                    source,
+                    target,
+                    length);
+
+                add_edge(
+                    target,
+                    source,
+                    length);
+            }
+            break;
+        }
+    }
+
+    using QueueItem =
+        std::pair<double, NodeId>;
+
+    const double infinity =
+        std::numeric_limits<double>::infinity();
+
+    std::unordered_map<NodeId, double> distance;
+
+    for (const auto& vertex : graph.vertices)
+    {
+        distance[vertex.id] = infinity;
+    }
+
+    const NodeId start =
+        static_cast<NodeId>(startNodeId);
+
+    const NodeId goal =
+        static_cast<NodeId>(goalNodeId);
+
+    std::priority_queue<
+        QueueItem,
+        std::vector<QueueItem>,
+        std::greater<QueueItem>>
+        queue;
+
+    distance[start] = 0.0;
+    queue.push(
+        std::make_pair(0.0, start));
+
+    while (!queue.empty())
+    {
+        const double currentDistance =
+            queue.top().first;
+
+        const NodeId currentNode =
+            queue.top().second;
+
+        queue.pop();
+
+        if (currentDistance >
+            distance[currentNode])
+        {
+            continue;
+        }
+
+        if (currentNode == goal)
+        {
+            return currentDistance;
+        }
+
+        const auto adjacencyIt =
+            adjacency.find(currentNode);
+
+        if (adjacencyIt == adjacency.end())
+        {
+            continue;
+        }
+
+        for (const auto& neighbor :
+             adjacencyIt->second)
+        {
+            const NodeId nextNode =
+                neighbor.first;
+
+            const double newDistance =
+                currentDistance +
+                neighbor.second;
+
+            if (newDistance <
+                distance[nextNode])
+            {
+                distance[nextNode] =
+                    newDistance;
+
+                queue.push(
+                    std::make_pair(
+                        newDistance,
+                        nextNode));
+            }
+        }
+    }
+
+    return -1.0;
 }
 
 
@@ -651,20 +960,26 @@ bool RosClient::sendGoal(
     }
 
 
-    if (!waypoint_name_to_id_.contains(
-            goalWaypoint))
+    int nodeId = -1;
+
     {
-        ROS_ERROR(
-            "Waypoint '%s' was not found in the graph.",
-            goalWaypoint.toStdString().c_str());
+        std::lock_guard<std::mutex> lock(
+            graph_mutex_);
 
-        return false;
+        if (!waypoint_name_to_id_.contains(
+                goalWaypoint))
+        {
+            ROS_ERROR(
+                "Waypoint '%s' was not found in the graph.",
+                goalWaypoint.toStdString().c_str());
+
+            return false;
+        }
+
+        nodeId =
+            waypoint_name_to_id_.value(
+                goalWaypoint);
     }
-
-
-    const int nodeId =
-        waypoint_name_to_id_.value(
-            goalWaypoint);
 
 
     const ros::Time now =
